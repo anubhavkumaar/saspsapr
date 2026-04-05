@@ -1405,7 +1405,7 @@ function FishingEvidenceSection() {
 }
 
 /* ─── RECRUITMENT ───────────────────────────────────────── */
-const DEPARTMENTS = ['LSPD','BCSO','SASP','SAMS','DOC','Civilian','Other']
+const DEPARTMENTS = ['LSPD','SASP']
 
 function RecruitmentSection() {
   const [name,    setName]    = useState('')
@@ -1421,7 +1421,7 @@ function RecruitmentSection() {
 
   const handleSubmit = async e => {
     e.preventDefault(); setErr('')
-    if(!name.trim()||!cid.trim()||!dept||!why.trim()) return
+    if(!name.trim()||!cid.trim()||!dept||!why.trim()||!discord.trim()) return
     setBusy(true)
     try {
       await addDoc(collection(db,'sapr_applications'),{
@@ -1525,8 +1525,8 @@ function RecruitmentSection() {
                     <textarea className="fe-input rec-textarea" placeholder="Tell us what drives your interest in wildlife enforcement..." value={why} onChange={e=>setWhy(e.target.value)} rows={4} required/>
                   </div>
                   <div className="rec-field">
-                    <label className="rec-label">Discord Tag (optional)</label>
-                    <input className="fe-input" placeholder="e.g. username#0001" value={discord} onChange={e=>setDiscord(e.target.value)}/>
+                    <label className="rec-label">Discord Tag <span className="rec-req">*</span></label>
+                    <input className="fe-input" placeholder="e.g. username#0001" value={discord} onChange={e=>setDiscord(e.target.value)} required/>
                   </div>
                   {err && <p className="fe-err">&#9888; {err}</p>}
                   <button className="fe-add-btn rec-submit" type="submit" disabled={busy}>
