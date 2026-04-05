@@ -846,7 +846,22 @@
   padding: 0.7rem 1rem;
   margin-bottom: 1rem;
 }
-.fe-admin-tag { font: 500 11.5px/1 var(--mono); color: var(--em); letter-spacing: 0.5px; }
+.fe-admin-tag     { font: 500 11.5px/1 var(--mono); color: var(--em); letter-spacing: 0.5px; }
+.fe-admin-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+.fe-admin-mgmt {
+  font: 600 10px/1 var(--mono);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--gold);
+  background: var(--goldd);
+  border: 1px solid var(--goldb);
+  border-radius: var(--r);
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  white-space: nowrap;
+}
+.fe-admin-mgmt:hover { background: var(--goldb); }
 .fe-admin-signout {
   font: 600 10px/1 var(--mono);
   letter-spacing: 1.5px;
@@ -1041,7 +1056,48 @@
 .fe-modal-close:hover { color: var(--t1); }
 .fe-modal-title { font: 700 20px/1 var(--ui); color: var(--t1); letter-spacing: -0.3px; margin: 0; }
 .fe-modal-sub   { font: 400 13px/1.5 var(--ui); color: var(--t2); margin: 0; }
-.fe-err         { font: 400 12px/1 var(--mono); color: var(--red); margin: 0; }
+.fe-err { font: 400 12px/1 var(--mono); color: var(--red); margin: 0; }
+.fe-ok  { font: 400 12px/1 var(--mono); color: var(--em);  margin: 0; }
+
+/* ─── Manage Users panel ─────────────────────────────────── */
+.fe-mgmt-panel {
+  background: var(--s);
+  border: 1px solid var(--goldb);
+  border-radius: var(--rm);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.25rem;
+}
+.fe-mgmt-title {
+  font: 700 13px/1 var(--ui);
+  color: var(--gold);
+  letter-spacing: 0.3px;
+  margin: 0 0 0.9rem;
+  text-transform: uppercase;
+}
+.fe-mgmt-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+.fe-mgmt-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.fe-mgmt-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: var(--s2);
+  border: 1px solid var(--ln);
+  border-radius: var(--r);
+  padding: 0.45rem 0.85rem;
+}
+.fe-mgmt-name  { font: 600 13px/1 var(--ui); color: var(--t1); }
+.fe-mgmt-email { font: 400 11px/1 var(--mono); color: var(--t3); }
 
 /* Lightbox */
 .fe-lightbox {
@@ -1139,8 +1195,58 @@
   gap: 0.3rem;
   text-align: center;
 }
-.fe-lightbox-caption { font: 400 14px/1.5 var(--ui); color: var(--t2); margin: 0; }
-.fe-lightbox-date    { font: 500 11px/1 var(--mono); color: var(--em); letter-spacing: 1px; }
+.fe-lightbox-caption  { font: 400 14px/1.5 var(--ui); color: var(--t2); margin: 0; }
+.fe-lightbox-row      { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; justify-content: center; }
+.fe-lightbox-date     { font: 500 11px/1 var(--mono); color: var(--em); letter-spacing: 1px; }
+.fe-lightbox-uploader { font: 500 11px/1 var(--mono); color: var(--gold); letter-spacing: 0.5px; }
+
+/* ─── Filter bar ──────────────────────────────────── */
+.fe-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+.fe-filter-label {
+  font: 500 11.5px/1 var(--mono);
+  color: var(--t3);
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+.fe-filter-select {
+  background: var(--s);
+  border: 1px solid var(--ln);
+  border-radius: var(--r);
+  color: var(--t1);
+  font: 500 13px/1 var(--ui);
+  padding: 0.45rem 0.75rem;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+  color-scheme: dark;
+}
+.fe-filter-select:focus { border-color: var(--em); }
+.fe-filter-count {
+  font: 500 11px/1 var(--mono);
+  color: var(--em);
+  letter-spacing: 0.5px;
+}
+
+/* ─── Uploader badge on card ──────────────────────── */
+.fe-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.15rem;
+}
+.fe-uploader {
+  font: 500 10.5px/1 var(--mono);
+  color: var(--gold);
+  letter-spacing: 0.4px;
+}
 
 /* ===================== FOOTER ===================== */
 .footer {

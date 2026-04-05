@@ -3,9 +3,15 @@ import { motion, useScroll, useTransform, useInView, useMotionValue } from 'fram
 import './App.css'
 import logoRanger from './assets/C1i37hio.png'
 import logoState  from './assets/Ci37h33io.png'
-import { db, auth } from './firebase'
-import { collection, addDoc, deleteDoc, doc, query, orderBy, onSnapshot, serverTimestamp } from 'firebase/firestore'
-import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth'
+import { db, auth, firebaseConfig } from './firebase'
+import { collection, addDoc, deleteDoc, doc, setDoc, getDocs, query, orderBy, onSnapshot, serverTimestamp } from 'firebase/firestore'
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword } from 'firebase/auth'
+import { initializeApp, getApps } from 'firebase/app'
+import { getAuth } from 'firebase/auth'
+
+// Secondary Firebase app — creates new users without signing out the current admin
+const secondaryApp  = getApps().find(a=>a.name==='secondary') || initializeApp(firebaseConfig,'secondary')
+const secondaryAuth = getAuth(secondaryApp)
 
 /* ─── DATA ──────────────────────────────────────────────── */
 const LEGAL_SPECIES = [
@@ -56,6 +62,18 @@ const WHY = [
   { n:'05', t:'Specialized Training Deficit',  b:"Game wardens require training patrol officers don't receive: species identification, ecological law, licensing procedures, backcountry patrol, watercraft operation. A patrol officer cross-trained in wildlife enforcement will always be inferior to a dedicated conservation officer." },
   { n:'06', t:'Accountability Without Clarity',b:"A sub-department's performance gets buried in its parent agency's metrics. SAPR as a standalone unit has one mandate: protect San Andreas's ecosystem. That clarity produces measurable accountability — citation rates, license compliance, poaching arrests, species protection." },
 ]
+
+/* ─── USER DISPLAY NAMES ────────────────────────────────── */
+const MANAGEMENT_EMAIL = 'sapr@anubhav.gg'
+// Static fallback — Firestore `users` collection is the live source of truth
+const USER_NAMES_FALLBACK = {
+  'sapr@anubhav.gg':       'SAPR Management',
+  'sasp@sapr.gg':         'SASP High Command',
+  'sapr@anubhav.gg':      'SAPR Management',
+  'rickyshawn@saspr.gg':  'Ricky Shawn',
+}
+const getDisplayName = (email, dynamicMap) =>
+  (dynamicMap||{})[email] || USER_NAMES_FALLBACK[email] || email?.split('@')[0] || 'Unknown'
 
 /* ─── SVG ANIMALS ───────────────────────────────────────── */
 const DeerSvg = ({ size=90 }) => (
@@ -329,7 +347,7 @@ function Navbar() {
     {l:'Overview',href:'#overview'},{l:'Proposal',href:'#proposal'},
     {l:'Evidence',href:'#evidence'},{l:'Why SAPR',href:'#why'},
     {l:'Before Hunting',href:'#hunting-urgency'},{l:'Fishing Laws',href:'#fishing'},{l:'Map',href:'#map'},
-    {l:'On-field Evidence',href:'#fishing-evidence'},
+    {l:'Fishing Calls',href:'#fishing-evidence'},
   ]
   return (
     <motion.nav className={`nav ${sc?'scrolled':''}`}
@@ -1003,6 +1021,15 @@ function FishingEvidenceSection() {
   const [newCap,   setNewCap]   = useState('')
   const [newDate,  setNewDate]  = useState(getISTDate())
   const [busy,     setBusy]     = useState(false)
+  const [filterUser,setFilterUser]= useState('all')
+  const [userMap,   setUserMap]   = useState({})   // email→displayName from Firestore
+  const [showUserMgmt,setShowUserMgmt]= useState(false)
+  const [nuEmail,  setNuEmail]    = useState('')
+  const [nuPass,   setNuPass]     = useState('')
+  const [nuName,   setNuName]     = useState('')
+  const [nuBusy,   setNuBusy]     = useState(false)
+  const [nuErr,    setNuErr]      = useState('')
+  const [nuOk,     setNuOk]       = useState('')
   const [lightbox, setLightbox] = useState(null)
   const [lbScale,  setLbScale]  = useState(1)
   const lbX      = useMotionValue(0)
@@ -1048,6 +1075,40 @@ function FishingEvidenceSection() {
     return unsub
   },[])
 
+  useEffect(()=>{
+    const unsub = onSnapshot(collection(db,'sapr_users'), snap => {
+      const map = {}
+      snap.docs.forEach(d=>{ const {email,displayName}=d.data(); if(email) map[email]=displayName })
+      setUserMap(map)
+    })
+    return unsub
+  },[])
+
+  const handleCreateUser = async e => {
+    e.preventDefault(); setNuErr(''); setNuOk('')
+    if(!nuEmail.trim()||!nuPass.trim()||!nuName.trim()) return
+    setNuBusy(true)
+    try {
+      const cred = await createUserWithEmailAndPassword(secondaryAuth, nuEmail.trim(), nuPass.trim())
+      await signOut(secondaryAuth)
+      await setDoc(doc(db,'users', nuEmail.trim().replace(/[@.]/g,'_')), {
+        email:       nuEmail.trim(),
+        displayName: nuName.trim(),
+        uid:         cred.user.uid,
+        createdAt:   serverTimestamp(),
+      })
+      setNuOk(`Account created — ${nuName.trim()} (${nuEmail.trim()})`)
+      setNuEmail(''); setNuPass(''); setNuName('')
+    } catch(err) {
+      const msg = err.code==='auth/email-already-in-use'
+        ? 'That email already has an account.'
+        : err.code==='auth/weak-password'
+        ? 'Password must be at least 6 characters.'
+        : (err.message||'Failed to create account.')
+      setNuErr(msg)
+    } finally { setNuBusy(false) }
+  }
+
   const [dragOver, setDragOver] = useState(false)
 
   // Global paste → fill URL field when admin panel is open
@@ -1089,6 +1150,8 @@ function FishingEvidenceSection() {
         url: newUrl.trim(),
         caption: newCap.trim(),
         date: newDate,
+        uploadedBy: getDisplayName(user.email, userMap),
+        uploaderEmail: user.email,
         createdAt: serverTimestamp(),
       })
       setNewUrl(''); setNewCap(''); setNewDate(getISTDate())
@@ -1096,6 +1159,9 @@ function FishingEvidenceSection() {
   }
 
   const handleDelete = id => deleteDoc(doc(db,'fishing_evidence',id))
+
+  const uploaders = ['all',...Array.from(new Set(images.map(img=>img.uploadedBy||'Unknown')))]
+  const visibleImages = filterUser==='all' ? images : images.filter(img=>(img.uploadedBy||'Unknown')===filterUser)
 
   return (
     <section className="sec sec--alt" id="fishing-evidence">
@@ -1122,9 +1188,40 @@ function FishingEvidenceSection() {
         {user && (
           <Reveal>
             <div className="fe-admin-bar">
-              <span className="fe-admin-tag">&#9679; Admin Mode — {user.email}</span>
-              <button className="fe-admin-signout" onClick={()=>signOut(auth)}>Sign Out</button>
+              <span className="fe-admin-tag">&#9679; {getDisplayName(user.email,userMap)} — {user.email}</span>
+              <div className="fe-admin-actions">
+                {user.email===MANAGEMENT_EMAIL && (
+                  <button className="fe-admin-mgmt" onClick={()=>{setShowUserMgmt(v=>!v);setNuErr('');setNuOk('')}}>
+                    {showUserMgmt?'▲ Close':'👤 Manage Users'}
+                  </button>
+                )}
+                <button className="fe-admin-signout" onClick={()=>signOut(auth)}>Sign Out</button>
+              </div>
             </div>
+
+            {/* Manage Users panel — management only */}
+            {showUserMgmt && user.email===MANAGEMENT_EMAIL && (
+              <div className="fe-mgmt-panel">
+                <h4 className="fe-mgmt-title">Create Officer Account</h4>
+                <form className="fe-mgmt-form" onSubmit={handleCreateUser}>
+                  <input className="fe-input" placeholder="Display name (e.g. Sgt. Rex Davis)" value={nuName} onChange={e=>setNuName(e.target.value)} required/>
+                  <input className="fe-input" type="email" placeholder="Email address" value={nuEmail} onChange={e=>setNuEmail(e.target.value)} required/>
+                  <input className="fe-input" type="password" placeholder="Password (min 6 chars)" value={nuPass} onChange={e=>setNuPass(e.target.value)} required minLength={6}/>
+                  {nuErr && <p className="fe-err">&#9888; {nuErr}</p>}
+                  {nuOk  && <p className="fe-ok">&#10003; {nuOk}</p>}
+                  <button className="fe-add-btn" type="submit" disabled={nuBusy}>{nuBusy?'Creating…':'+ Create Account'}</button>
+                </form>
+                <h4 className="fe-mgmt-title" style={{marginTop:'1.25rem'}}>Registered Officers</h4>
+                <div className="fe-mgmt-list">
+                  {Object.entries({...USER_NAMES_FALLBACK,...userMap}).map(([em,name],i)=>(
+                    <div key={i} className="fe-mgmt-row">
+                      <span className="fe-mgmt-name">{name}</span>
+                      <span className="fe-mgmt-email">{em}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Drop zone */}
             <div
@@ -1162,23 +1259,45 @@ function FishingEvidenceSection() {
             <div className="fe-empty">No evidence added yet. Log in as admin to upload images.</div>
           </Reveal>
         ) : (
-          <div className="fe-grid">
-            {images.map((img,i)=>(
-              <Reveal key={img.id} delay={Math.min(i*.08,.48)} dir={i%2===0?'left':'right'}>
-                <motion.div className="card card--flat fe-card" whileHover={{scale:1.02,y:-4}}>
-                  {user && (
-                    <button className="fe-del" onClick={()=>handleDelete(img.id)} title="Remove">&#10005;</button>
-                  )}
-                  <img src={img.url} alt={img.caption||'Fishing evidence'} className="fe-img" loading="lazy"
-                    onClick={()=>setLightbox(img)}/>
-                  <div className="fe-card-footer">
-                    {img.caption && <p className="fe-cap">{img.caption}</p>}
-                    {img.date && <span className="fe-date">{fmtDate(img.date)}</span>}
-                  </div>
-                </motion.div>
-              </Reveal>
-            ))}
-          </div>
+          <>
+            {/* Filter bar */}
+            <div className="fe-filter-bar">
+              <span className="fe-filter-label">&#9660; Filter by officer</span>
+              <select className="fe-filter-select" value={filterUser} onChange={e=>setFilterUser(e.target.value)}>
+                {uploaders.map(u=>(
+                  <option key={u} value={u}>{u==='all'?'All Officers':u}</option>
+                ))}
+              </select>
+              {filterUser!=='all' && (
+                <span className="fe-filter-count">{visibleImages.length} image{visibleImages.length!==1?'s':''}</span>
+              )}
+            </div>
+
+            {visibleImages.length===0 ? (
+              <div className="fe-empty">No evidence from this officer yet.</div>
+            ) : (
+              <div className="fe-grid">
+                {visibleImages.map((img,i)=>(
+                  <Reveal key={img.id} delay={Math.min(i*.08,.48)} dir={i%2===0?'left':'right'}>
+                    <motion.div className="card card--flat fe-card" whileHover={{scale:1.02,y:-4}}>
+                      {user && (
+                        <button className="fe-del" onClick={()=>handleDelete(img.id)} title="Remove">&#10005;</button>
+                      )}
+                      <img src={img.url} alt={img.caption||'Fishing evidence'} className="fe-img" loading="lazy"
+                        onClick={()=>setLightbox(img)}/>
+                      <div className="fe-card-footer">
+                        {img.caption && <p className="fe-cap">{img.caption}</p>}
+                        <div className="fe-card-meta">
+                          {img.date && <span className="fe-date">{fmtDate(img.date)}</span>}
+                          <span className="fe-uploader">&#9679; {img.uploadedBy||'Unknown'}</span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  </Reveal>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -1246,10 +1365,13 @@ function FishingEvidenceSection() {
               </div>
             </div>
 
-            {(lightbox.caption||lightbox.date) && (
+            {(lightbox.caption||lightbox.date||lightbox.uploadedBy) && (
               <div className="fe-lightbox-meta">
                 {lightbox.caption && <p className="fe-lightbox-caption">{lightbox.caption}</p>}
-                {lightbox.date && <span className="fe-lightbox-date">{fmtDate(lightbox.date)}</span>}
+                <div className="fe-lightbox-row">
+                  {lightbox.date && <span className="fe-lightbox-date">{fmtDate(lightbox.date)}</span>}
+                  {lightbox.uploadedBy && <span className="fe-lightbox-uploader">&#9679; {lightbox.uploadedBy}</span>}
+                </div>
               </div>
             )}
           </motion.div>
