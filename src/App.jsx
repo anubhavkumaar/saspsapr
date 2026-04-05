@@ -1450,7 +1450,7 @@ function RecruitmentSection() {
             <span className="sec-num" style={{color:'var(--em)'}}>JOIN</span>
             <p className="sec-tag">Open Enrollment</p>
             <SplitReveal text="San Andreas Park Rangers — Now Recruiting" className="sec-title" delay={.1} stagger={.024}/>
-            <FadeWords text="We don't recruit on paper. We recruit on effort. Show up, do the work, earn the badge." className="sec-sub"/>
+            <FadeWords text="Open to all Officers. Quality over quantity, we want people who mean it." className="sec-sub"/>
             <div className="sec-rule"/>
           </div>
         </Reveal>
@@ -1460,13 +1460,16 @@ function RecruitmentSection() {
           <div className="rec-announcement">
             <div className="rec-ann-icon">&#128247;</div>
             <div>
-              <div className="rec-ann-title">Expressions of Interest — Open Now</div>
+              <div className="rec-ann-title">Open to all Officers, Limited Slots</div>
               <div className="rec-ann-body">
-                SAPR is accepting applications from officers across all departments — LSPD, BCSO, SASP — and qualified civilians.
-                There is no SOI process. No interview panel. No paper trail before you've proven yourself.
+                Fill out the form below. Keep it real, <strong>1 or 2 lines</strong>, no AI-written essays.
+                Tell us why you want to join and what you're bringing to the table.
                 <br/><br/>
-                Submit your details below. You will be contacted by <strong>SAPR Command</strong> once your application is reviewed.
-                In the meantime — get out on the water, document violations, and let your work speak for you.
+                Once your form is submitted, you'll need to <strong>find a time to meet Trooper Eddie (SAPR Overwatch) and Game Warden Rex in person</strong> — sit down, give your pitch, share your ambitions.
+                If it's a fit, your application gets marked and you'll receive your login credentials.
+                <br/><br/>
+                From there — upload your field evidence. <strong>Quality, not quantity.</strong> We don't want someone grinding just to show numbers.
+                If the work is genuine, you'll hear back within <strong>5 to 6 days.</strong>
               </div>
             </div>
           </div>
@@ -1475,7 +1478,7 @@ function RecruitmentSection() {
         {/* What we expect */}
         <Reveal delay={.15}>
           <div className="rec-pills">
-            {['Active field patrol','Fishing zone enforcement','Evidence documentation','MDT filing discipline','Teamwork across agencies'].map((p,i)=>(
+            {['SASP Troopers & LSPD Officers only','Meet Eddie & Rex in person','Quality field evidence','No quantity grinding','Response within 5–6 days'].map((p,i)=>(
               <span key={i} className="rec-pill">&#10003; {p}</span>
             ))}
           </div>
@@ -1487,21 +1490,21 @@ function RecruitmentSection() {
             {done ? (
               <div className="rec-success">
                 <div className="rec-success-icon">&#10003;</div>
-                <div className="rec-success-title">Application Received</div>
-                <div className="rec-success-sub">SAPR Command will review your submission and reach out. Keep patrolling.</div>
+                <div className="rec-success-title">Form Received</div>
+                <div className="rec-success-sub">Now find a time to sit down with Trooper Eddie & Game Warden Rex — give your pitch in person. We'll take it from there.</div>
               </div>
             ) : (
               <>
-                <h3 className="rec-form-title">Expression of Interest</h3>
+                <h3 className="rec-form-title">Expression of Interest — Fill it yourself, keep it real</h3>
                 <form className="rec-form" onSubmit={handleSubmit}>
                   <div className="rec-row">
                     <div className="rec-field">
                       <label className="rec-label">In-Game Name <span className="rec-req">*</span></label>
-                      <input className="fe-input" placeholder="e.g. John Carter" value={name} onChange={e=>setName(e.target.value)} required/>
+                      <input className="fe-input" placeholder="e.g. Rex Davis" value={name} onChange={e=>setName(e.target.value)} required/>
                     </div>
                     <div className="rec-field">
                       <label className="rec-label">Citizen ID <span className="rec-req">*</span></label>
-                      <input className="fe-input" placeholder="e.g. 10942" value={cid} onChange={e=>setCid(e.target.value)} required/>
+                      <input className="fe-input" placeholder="e.g. 1156" value={cid} onChange={e=>setCid(e.target.value)} required/>
                     </div>
                   </div>
                   <div className="rec-row">
@@ -1519,15 +1522,15 @@ function RecruitmentSection() {
                   </div>
                   <div className="rec-field">
                     <label className="rec-label">Availability (shifts / hours per week)</label>
-                    <input className="fe-input" placeholder="e.g. Evenings IST, ~4 hrs/week" value={avail} onChange={e=>setAvail(e.target.value)}/>
+                    <input className="fe-input" placeholder="e.g. Evenings IST, ~10 hrs/week" value={avail} onChange={e=>setAvail(e.target.value)}/>
                   </div>
                   <div className="rec-field">
-                    <label className="rec-label">Why do you want to join SAPR? <span className="rec-req">*</span></label>
-                    <textarea className="fe-input rec-textarea" placeholder="Tell us what drives your interest in wildlife enforcement..." value={why} onChange={e=>setWhy(e.target.value)} rows={4} required/>
+                    <label className="rec-label">Why do you want to join SAPR? <span className="rec-req">*</span> <span style={{color:'var(--t3)',fontWeight:400}}>— 1 or 2 lines, no AI</span></label>
+                    <input className="fe-input" placeholder="Your pitch & ambitions — you'll explain the rest to Eddie & Rex in person" value={why} onChange={e=>setWhy(e.target.value)} required/>
                   </div>
                   <div className="rec-field">
                     <label className="rec-label">Discord Tag <span className="rec-req">*</span></label>
-                    <input className="fe-input" placeholder="e.g. username#0001" value={discord} onChange={e=>setDiscord(e.target.value)} required/>
+                    <input className="fe-input" placeholder="e.g. @anubhavv " value={discord} onChange={e=>setDiscord(e.target.value)} required/>
                   </div>
                   {err && <p className="fe-err">&#9888; {err}</p>}
                   <button className="fe-add-btn rec-submit" type="submit" disabled={busy}>
