@@ -338,27 +338,49 @@ function SectionDiv({ label }) {
 
 /* ─── NAVBAR ────────────────────────────────────────────── */
 function Navbar() {
-  const [sc,setSc]=useState(false)
-  const loc=useLocation()
-  const onMain=loc.pathname==='/'
+  const [sc,  setSc]  = useState(false)
+  const [open,setOpen]= useState(false)
+  const loc = useLocation()
+  const onHome = loc.pathname==='/'
+
   useEffect(()=>{
     const h=()=>setSc(window.scrollY>50)
     window.addEventListener('scroll',h)
     return ()=>window.removeEventListener('scroll',h)
   },[])
-  const anchorLinks=[
-    {l:'Overview',href:'#overview'},{l:'Proposal',href:'#proposal'},
-    {l:'Evidence',href:'#evidence'},{l:'Why SAPR',href:'#why'},
-    {l:'Before Hunting',href:'#hunting-urgency'},{l:'Fishing Laws',href:'#fishing'},{l:'Map',href:'#map'},
+
+  // Close menu on route change
+  useEffect(()=>setOpen(false),[loc.pathname])
+
+  const anchorLinks = loc.pathname==='/'
+    ? [{l:'Roster',href:'#roster'},{l:'Hunting',href:'#hunting-urgency'},{l:'Fishing',href:'#fishing'},{l:'Map',href:'#map'}]
+    : loc.pathname==='/proposal'
+    ? [{l:'Overview',href:'#overview'},{l:'Evidence',href:'#evidence'},{l:'Why SAPR',href:'#why'},{l:'Map',href:'#map'}]
+    : []
+
+  const routeLinks = loc.pathname==='/proposal'
+    ? [{l:'Home', to:'/'}]
+    : [
+        {l:'Home',      to:'/'},
+        {l:'Field Work',to:'/fishingevidence'},
+        {l:'Join',      to:'/joinsapr'},
+        {l:'Proposal',  to:'/proposal'},
+      ]
+
+  const homeLink       = routeLinks.find(l=>l.to==='/')
+  const otherRouteLinks= routeLinks.filter(l=>l.to!=='/')
+  const allLinks = [
+    ...(homeLink ? [{ type:'route', ...homeLink }] : []),
+    ...anchorLinks.map(l=>({ type:'anchor', ...l })),
+    ...otherRouteLinks.map(l=>({ type:'route', ...l })),
   ]
-  const routeLinks=[
-    {l:'Fishing Calls',to:'/fishingevidence'},
-    {l:'Join SAPR',    to:'/joinsapr'},
-  ]
+
   return (
-    <motion.nav className={`nav ${sc?'scrolled':''}`}
+    <motion.nav className={`nav ${sc?'scrolled':''} ${open?'nav--open':''}`}
       initial={{y:-60}} animate={{y:0}} transition={{duration:.6,ease:'easeOut'}}>
-      {onMain
+
+      {/* Brand */}
+      {onHome
         ? <a href="#hero" className="nav-brand">
             <div className="nav-logos">
               <div className="nav-logo" style={{backgroundImage:`url(${logoRanger})`}}/>
@@ -380,20 +402,163 @@ function Navbar() {
             </div>
           </Link>
       }
+
+      {/* Desktop links */}
       <ul className="nav-links">
-        {anchorLinks.map((l,i)=>(
-          <motion.li key={l.href} initial={{opacity:0}} animate={{opacity:1}} transition={{delay:.15+i*.05}}>
-            <a className="nav-link" href={onMain?l.href:`/${l.href}`}>{l.l}</a>
-          </motion.li>
-        ))}
-        {routeLinks.map((l,i)=>(
-          <motion.li key={l.to} initial={{opacity:0}} animate={{opacity:1}} transition={{delay:.15+(anchorLinks.length+i)*.05}}>
-            <Link className={`nav-link${loc.pathname===l.to?' nav-link--active':''}`} to={l.to}>{l.l}</Link>
+        {allLinks.map((l,i)=>(
+          <motion.li key={l.href||l.to} initial={{opacity:0}} animate={{opacity:1}} transition={{delay:.15+i*.05}}>
+            {l.type==='anchor'
+              ? <a className="nav-link" href={l.href}>{l.l}</a>
+              : <Link className={`nav-link${loc.pathname===l.to?' nav-link--active':''}`} to={l.to}>{l.l}</Link>
+            }
           </motion.li>
         ))}
       </ul>
-      <span className="nav-tag">2026</span>
+
+      {/* Hamburger button */}
+      <button className="nav-burger" onClick={()=>setOpen(v=>!v)} aria-label="Menu">
+        <span className={`burger-line ${open?'burger-line--1':''}`}/>
+        <span className={`burger-line ${open?'burger-line--2':''}`}/>
+        <span className={`burger-line ${open?'burger-line--3':''}`}/>
+      </button>
+
+      {/* Mobile drawer */}
+      {open && (
+        <div className="nav-drawer" onClick={()=>setOpen(false)}>
+          <div className="nav-drawer-inner" onClick={e=>e.stopPropagation()}>
+            {allLinks.map((l,i)=>(
+              <div key={l.href||l.to} className="nav-drawer-item">
+                {l.type==='anchor'
+                  ? <a className={`nav-drawer-link`} href={l.href} onClick={()=>setOpen(false)}>{l.l}</a>
+                  : <Link className={`nav-drawer-link${loc.pathname===l.to?' nav-drawer-link--active':''}`} to={l.to}>{l.l}</Link>
+                }
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </motion.nav>
+  )
+}
+
+/* ─── DEPT HERO ─────────────────────────────────────────── */
+function DeptHero() {
+  return (
+    <section className="hero" id="hero">
+      <FlyingBirds/>
+      <RunningAnimals type="forest"/>
+      <div className="hero-watermark" aria-hidden="true">
+        <span className="hero-watermark-text">SAPR</span>
+      </div>
+      <div className="hero-pills">
+        {[
+          {dot:'sdot--em',  col:'var(--em)',  border:'rgba(16,185,129,.2)',  label:'Department Active'},
+          {dot:'sdot--em',  col:'var(--em)',  border:'rgba(16,185,129,.2)',  label:'Recruiting Open'},
+          {dot:'sdot--gold',col:'var(--gold)',border:'rgba(245,158,11,.22)', label:'Statewide Jurisdiction'},
+        ].map((p,i)=>(
+          <motion.div key={i} className="hero-pill"
+            style={{color:p.col, borderColor:p.border}}
+            initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} transition={{delay:1.2+i*.12}}>
+            <span className={`sdot ${p.dot}`}/>
+            {p.label}
+          </motion.div>
+        ))}
+      </div>
+      <div className="hero-body">
+        <motion.div className="hero-eyebrow"
+          initial={{opacity:0,y:-12}} animate={{opacity:1,y:0}} transition={{delay:.2}}>
+          <div className="hero-logos">
+            <div className="hero-logo-sm" style={{backgroundImage:`url(${logoRanger})`}}/>
+            <div className="hero-logo-sm" style={{backgroundImage:`url(${logoState})`}}/>
+          </div>
+          <div className="hero-eyebrow-text">
+            <span className="hero-eyebrow-dept">SAPR · Established 2026</span>
+            <span className="hero-eyebrow-date">San Andreas State</span>
+          </div>
+        </motion.div>
+        <MaskReveal text="San Andreas Park Rangers" className="hero-h1" el="h1" delay={.4}/>
+        <motion.p className="hero-dept-line"
+          initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} transition={{delay:.95,duration:.6}}>
+          <Shimmer text="Wildlife Enforcement · Conservation · Statewide Operations"/>
+        </motion.p>
+        <motion.div className="hero-meta"
+          initial={{opacity:0,y:14}} animate={{opacity:1,y:0}} transition={{delay:1.1,duration:.6}}>
+          {[
+            {k:'Commanding Officer', v:'Game Warden Rex Davis (222)'},
+            {k:'Overwatch',          v:'Trooper Eddie'},
+            {k:'Jurisdiction',       v:'Statewide — All Fishing & Hunting Zones'},
+          ].map((r,i)=>(
+            <div key={i}>
+              {i>0 && <div className="hero-meta-sep"/>}
+              <div className="hero-meta-row">
+                <span className="hero-meta-key">{r.k}</span>
+                <span className="hero-meta-val">{r.v}</span>
+              </div>
+            </div>
+          ))}
+        </motion.div>
+        <motion.div className="hero-actions"
+          initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} transition={{delay:1.25,duration:.5}}>
+          <motion.a href="#roster" className="btn-primary"
+            whileHover={{scale:1.04}} whileTap={{scale:.96}}>
+            View Roster
+            <motion.span animate={{x:[0,5,0]}} transition={{duration:1.4,repeat:Infinity}}>→</motion.span>
+          </motion.a>
+          <Link to="/joinsapr" className="btn-secondary">Join SAPR ↓</Link>
+        </motion.div>
+        <motion.div className="hero-stats-row"
+          initial={{opacity:0}} animate={{opacity:1}} transition={{delay:1.4,duration:.6}}>
+          {[
+            {n:'48', l:'Legal Species',      s:'actively monitored',          col:'var(--em)' },
+            {n:'33', l:'Protected Species',  s:'under SAPR jurisdiction',     col:'var(--gold)'},
+            {n:'8',  l:'Penal Codes',        s:'wildlife violations enforced', col:'var(--org)' },
+          ].map((s,i)=>(
+            <div key={i} className="hero-stat">
+              <span className="hero-stat-n" style={{color:s.col}}>
+                <CountUp target={s.n} delay={1.45+i*.18}/>
+              </span>
+              <span className="hero-stat-l">{s.l}</span>
+              <span className="hero-stat-s">{s.s}</span>
+            </div>
+          ))}
+        </motion.div>
+      </div>
+      <div className="hero-scroll">
+        <motion.div className="hero-scroll-line"
+          animate={{scaleY:[0,1,0],opacity:[0,1,0]}}
+          transition={{duration:2,repeat:Infinity,ease:'easeInOut'}}
+          style={{width:1,height:48,background:'var(--em)',transformOrigin:'top'}}/>
+      </div>
+    </section>
+  )
+}
+
+/* ─── ROSTER SECTION ─────────────────────────────────────── */
+function RosterSection() {
+  return (
+    <section className="sec sec--dark" id="roster">
+      <div className="sec-inner">
+        <Reveal>
+          <div className="sec-head">
+            <span className="sec-num">01</span>
+            <p className="sec-tag">Active Personnel</p>
+            <SplitReveal text="Department Roster" className="sec-title" delay={.1} stagger={.028}/>
+            <FadeWords text="All active SAPR officers — updated in real time" className="sec-sub"/>
+            <div className="sec-rule"/>
+          </div>
+        </Reveal>
+        <Reveal delay={.15}>
+          <div className="roster-wrap">
+            <iframe
+              src="https://docs.google.com/spreadsheets/d/e/2PACX-1vTVP9ajLq4BVZ0sY4WthrRoexEfoCB3cjlONL3nkj-3wtF70tKODFkFeWewvmKXsavTDB538PZKWgrW/pubhtml"
+              className="roster-frame"
+              title="SAPR Department Roster"
+              frameBorder="0"
+            />
+          </div>
+        </Reveal>
+      </div>
+    </section>
   )
 }
 
@@ -749,8 +914,20 @@ function WhySection() {
   )
 }
 
-/* ─── HUNTING URGENCY ───────────────────────────────────── */
+/* ─── HUNTING REGULATIONS ───────────────────────────────── */
 function HuntingSection() {
+  const HUNT_AREAS = ['Mount Chiliad','Mount Josiah','Mount Gordo','Chiliad Mountain State Wilderness','San Chianski Mountain Range']
+  const RESTRICTIONS = [
+    'Conservation officers may request to inspect your game at any time',
+    'Cannot buy, sell, or possess — dead or alive — any part of a protected species',
+    'Must stay at least 15 meters from the road at all times',
+    'Do not skin animals directly on hunting trails — move off to the side',
+    'Hunting hours: 05:00 – 19:30 only',
+    'Hunting permitted in designated areas only',
+    'Maximum 150 items per trip (includes all parts removed) — exceeding this is Overhunting',
+    'Move up and down trails to avoid over-hunting a single area',
+    'Box trucks and large vehicles are strictly prohibited in the woods — treated as intent to poach',
+  ]
   return (
     <section className="sec sec--alt" id="hunting-urgency">
       <RunningAnimals type="forest"/>
@@ -760,55 +937,99 @@ function HuntingSection() {
       <div className="sec-inner">
         <Reveal>
           <div className="sec-head">
-            <span className="sec-num">05</span>
-            <p className="sec-tag sec-tag--red">Critical Urgency</p>
-            <SplitReveal text="SAPR Must Exist Before Hunting Opens" className="sec-title" delay={.1} stagger={.022}/>
-            <FadeWords text="Allowing hunting without a dedicated warden will cause irreversible ecological damage" className="sec-sub"/>
+            <span className="sec-num">02</span>
+            <p className="sec-tag">Active Regulations</p>
+            <SplitReveal text="Hunting Laws & Regulations" className="sec-title" delay={.1} stagger={.022}/>
+            <FadeWords text="Official SAPR-enforced hunting protocol across San Andreas — all officers are required to know and apply these rules" className="sec-sub"/>
             <div className="sec-rule"/>
           </div>
         </Reveal>
+
+        {/* Hunting Areas */}
         <Reveal delay={.1}>
-          <div className="alert alert--danger" style={{marginBottom:'2.5rem'}}>
-            <span className="alert-icon">▶</span>
-            <span><strong>Critical Window:</strong> Hunting licenses have not been issued yet. This is the only opportunity to establish SAPR before firearms, remote terrain, and 33 endangered species enter the enforcement equation simultaneously.</span>
+          <h3 className="hunt-block-title">Designated Hunting Areas</h3>
+          <p className="hunt-block-sub">Only five legal hunting areas exist in San Andreas, designated by the hunting lodge in Paleto.</p>
+          <div className="hunt-areas">
+            {HUNT_AREAS.map((a,i)=>(
+              <motion.div key={i} className="hunt-area-card" whileHover={{scale:1.03,y:-3}}
+                initial={{opacity:0,y:12}} whileInView={{opacity:1,y:0}} viewport={{once:true}} transition={{delay:i*.07}}>
+                <span className="hunt-area-num">0{i+1}</span>
+                <span className="hunt-area-name">{a}</span>
+              </motion.div>
+            ))}
           </div>
         </Reveal>
-        <div className="tl">
-          {[
-            {s:'1',t:'active',tag:'Current State',         title:'Fishing Laws Active — Dispatch Already Strained',desc:'Regulations are live. Licenses are being issued. Dispatch is logging 10+ ecological calls per session with zero dedicated officers. We are already falling behind before hunting has even started.'},
-            {s:'2',t:'danger',tag:'Without SAPR',          title:'Hunting Begins — No Warden in the Field',       desc:'Licenses issued while no dedicated enforcement unit exists. Hunting rifles enter the wilderness. License verification in remote zones is impossible. Poachers operate freely with no risk of interception.'},
-            {s:'3',t:'danger',tag:'Irreversible Outcome',  title:'Endangered Species Casualties',                  desc:'Cougars, protected deer populations, and rare birds are hunted or poached before any enforcement response can be organized. Ecological damage at this level cannot be undone.'},
-            {s:'✓',t:'safe',  tag:'With SAPR — Correct Path',title:'Controlled, Sustainable Hunting Rollout',     desc:'SAPR established and operational before hunting opens. License verification active. Wildlife zones patrolled by dedicated wardens. Poaching deterred by visible enforcement presence.'},
-          ].map((item,i)=>(
-            <Reveal key={i} delay={i*.09}>
-              <motion.div className={`tl-item tl-item--${item.t}`} whileHover={{x:5}}>
-                <div className={`tl-dot tl-dot--${item.t}`}>{item.s}</div>
-                <div className="tl-body">
-                  <span className="tl-tag" style={{color:item.t==='safe'?'var(--em)':item.t==='active'?'var(--org)':'var(--red)'}}>{item.tag}</span>
-                  <h4 className="tl-title">{item.title}</h4>
-                  <p className="tl-desc">{item.desc}</p>
-                </div>
-              </motion.div>
-            </Reveal>
-          ))}
-        </div>
-        <Reveal delay={.42}>
-          <h3 style={{marginTop:'3rem',marginBottom:'.5rem',font:'700 20px/1 var(--ui)',letterSpacing:'-.3px'}}>Species Status Without SAPR</h3>
-          <p style={{color:'var(--t2)',fontSize:'.88rem',marginBottom:'1.1rem'}}>What is at immediate risk the moment hunting licenses are issued without a dedicated enforcement unit:</p>
-          <div className="tbl-wrap">
+
+        {/* Equipment */}
+        <Reveal delay={.15}>
+          <div className="equip-grid" style={{marginTop:'2rem'}}>
+            <div className="equip-block">
+              <div className="equip-title" style={{color:'var(--em)'}}>Legal Equipment</div>
+              {['Hunting Rifle'].map((item,i)=>(
+                <div key={i} className="equip-row"><span className="equip-icon equip-icon--ok">✓</span><span>{item}</span></div>
+              ))}
+            </div>
+            <div className="equip-block">
+              <div className="equip-title" style={{color:'var(--red)'}}>Illegal Equipment</div>
+              {['All Pistols','Automatic Weapons'].map((item,i)=>(
+                <div key={i} className="equip-row"><span className="equip-icon equip-icon--no">✗</span><span>{item}</span></div>
+              ))}
+            </div>
+          </div>
+        </Reveal>
+
+        {/* Species */}
+        <Reveal delay={.2}>
+          <div className="tbl-wrap" style={{marginTop:'2rem'}}>
             <table className="tbl">
-              <thead><tr><th>Species</th><th>Status</th><th>Risk Without SAPR</th><th>Hunting Permitted</th></tr></thead>
+              <thead><tr><th>Species</th><th>Status</th><th>Hunting Permitted</th></tr></thead>
               <tbody>
                 {HUNTING_SPECIES.map((sp,i)=>(
                   <motion.tr key={i} initial={{opacity:0,x:-16}} whileInView={{opacity:1,x:0}} viewport={{once:true}} transition={{delay:i*.05}}>
                     <td style={{fontWeight:500}}>{sp.name}</td>
-                    <td><span className={`chip ${sp.st==='Rare'?'chip--red':sp.st==='Domestic'?'chip--org':'chip--em'}`}>{sp.st}</span></td>
-                    <td style={{color:sp.ok?'var(--org)':'var(--red)',fontWeight:500}}>{sp.ok?'Overhunting, no limits enforced':'Poaching / Illegal kill'}</td>
+                    <td><span className={`chip ${sp.ok?'chip--em':sp.st==='Domestic'?'chip--org':'chip--red'}`}>{sp.ok?'Legal':'Protected'}</span></td>
                     <td style={{color:sp.ok?'var(--em)':'var(--red)',fontWeight:600,fontFamily:'var(--mono)',fontSize:'.85rem'}}>{sp.ok?'✓ With License':'✗ Prohibited'}</td>
                   </motion.tr>
                 ))}
               </tbody>
             </table>
+          </div>
+          <div className="alert alert--danger" style={{marginTop:'.9rem'}}>
+            <span className="alert-icon">▶</span>
+            <span>Possession of any part of a protected species constitutes <strong>Poaching</strong>. You may only act against a protected species if it poses an <strong>active threat</strong> to you or civilians. Do not fire warning shots — get in your vehicle.</span>
+          </div>
+        </Reveal>
+
+        {/* License */}
+        <Reveal delay={.25}>
+          <h3 className="hunt-block-title" style={{marginTop:'2.5rem'}}>Obtaining a Hunting License</h3>
+          <div className="step-list">
+            {[
+              'Consult with a licensed Attorney in San Andreas',
+              'Present a valid ID — required before purchase',
+              'Pay the licensing fee: $1,000 (clean record) or $3,250 (any misdemeanors or felonies)',
+              'License issued by San Andreas State Police after attorney consultation',
+            ].map((step,i)=>(
+              <motion.div key={i} className="step-item" whileHover={{x:8}}>
+                <div className="step-num">{i+1}</div>
+                <div>{step}</div>
+              </motion.div>
+            ))}
+          </div>
+        </Reveal>
+
+        {/* Restrictions */}
+        <Reveal delay={.3}>
+          <h3 className="hunt-block-title" style={{marginTop:'2.5rem'}}>Restrictions & Regulations</h3>
+          <div className="incident-list">
+            {RESTRICTIONS.map((r,i)=>(
+              <Reveal key={i} delay={.04*i} dir="right">
+                <motion.div className="incident-row" whileHover={{scale:1.01}}>
+                  <span className="incident-marker">▸</span>
+                  <span>{r}</span>
+                </motion.div>
+              </Reveal>
+            ))}
           </div>
         </Reveal>
       </div>
@@ -825,10 +1046,10 @@ function FishingSection() {
       <div className="sec-inner">
         <Reveal>
           <div className="sec-head">
-            <span className="sec-num">06</span>
+            <span className="sec-num">03</span>
             <p className="sec-tag">Active Regulations</p>
-            <MaskReveal text="Current Fishing Laws" className="sec-title" delay={.1}/>
-            <FadeWords text="The active fishing framework — already in force, already generating violations, already proving the need for SAPR" className="sec-sub"/>
+            <MaskReveal text="Fishing Laws & Protocols" className="sec-title" delay={.1}/>
+            <FadeWords text="Official SAPR-enforced fishing regulations across all San Andreas waterways and open sea" className="sec-sub"/>
             <div className="sec-rule"/>
           </div>
         </Reveal>
@@ -1016,7 +1237,7 @@ function Footer() {
         <div className="footer-name">San Andreas Park Rangers</div>
         <div className="footer-rule"/>
         <div className="footer-sub">Protecting wildlife · Enforcing regulations · Preserving the ecosystem</div>
-        <div className="footer-sub" style={{marginTop:'.4rem'}}>Proposal submitted March 28, 2026 · Sgt. Rex Davis (222) · LSPD · To SASP Commissioner</div>
+        <div className="footer-sub" style={{marginTop:'.4rem'}}>Built &amp; led by Game Warden Rex Davis (222) · Founding Officer, San Andreas Park Rangers</div>
       </Reveal>
     </footer>
   )
@@ -1945,6 +2166,37 @@ function FishingEvidencePage() {
   )
 }
 
+/* ─── PROPOSAL PAGE ─────────────────────────────────────── */
+function ProposalPage() {
+  return (
+    <div style={{minHeight:'100vh',background:'var(--bg)'}}>
+      <Navbar/>
+      <div style={{paddingTop:'56px'}}>
+        <div className="proposal-back-bar">
+          <Link to="/" className="proposal-back-btn">
+            ← Back to SAPR
+          </Link>
+          <span className="proposal-back-label">Original Proposal — March 28, 2026</span>
+        </div>
+        <Hero/>
+        <SectionDiv label="Section 01 — Overview"/>
+        <OverviewSection/>
+        <SectionDiv label="Section 02 — Proposal Letter"/>
+        <ProposalSection/>
+        <SectionDiv label="Section 03 — Evidence"/>
+        <EvidenceSection/>
+        <SectionDiv label="Section 04 — Why SAPR"/>
+        <WhySection/>
+        <SectionDiv label="Section 05 — Zone Map"/>
+        <MapSection/>
+        <SectionDiv label="Section 06 — Formal Request"/>
+        <FinalAskSection/>
+        <Footer/>
+      </div>
+    </div>
+  )
+}
+
 /* ─── MAIN PAGE ─────────────────────────────────────────── */
 function MainPage() {
   const [done,setDone]=useState(false)
@@ -1952,23 +2204,15 @@ function MainPage() {
     <>
       {!done && <Intro onDone={()=>setDone(true)}/>}
       <Navbar/>
-      <Hero/>
-      <SectionDiv label="Section 01 — Overview"/>
-      <OverviewSection/>
-      <SectionDiv label="Section 02 — Proposal Letter"/>
-      <ProposalSection/>
-      <SectionDiv label="Section 03 — Evidence"/>
-      <EvidenceSection/>
-      <SectionDiv label="Section 04 — Why SAPR"/>
-      <WhySection/>
-      <SectionDiv label="Section 05 — Hunting Urgency"/>
+      <DeptHero/>
+      <SectionDiv label="Section 01 — Department Roster"/>
+      <RosterSection/>
+      <SectionDiv label="Section 02 — Hunting Regulations"/>
       <HuntingSection/>
-      <SectionDiv label="Section 06 — Fishing Laws"/>
+      <SectionDiv label="Section 03 — Fishing Laws"/>
       <FishingSection/>
-      <SectionDiv label="Section 07 — Zone Map"/>
+      <SectionDiv label="Section 04 — Zone Map"/>
       <MapSection/>
-      <SectionDiv label="Section 08 — Formal Request"/>
-      <FinalAskSection/>
       <Footer/>
     </>
   )
@@ -2005,6 +2249,7 @@ export default function App() {
       <Route path="/" element={<MainPage/>}/>
       <Route path="/fishingevidence" element={<FishingEvidencePage/>}/>
       <Route path="/joinsapr" element={<JoinSAPRPage/>}/>
+      <Route path="/proposal" element={<ProposalPage/>}/>
     </Routes>
   )
 }
