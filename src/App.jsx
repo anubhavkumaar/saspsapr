@@ -1114,7 +1114,7 @@ function FishingEvidenceSection() {
     try {
       const cred = await createUserWithEmailAndPassword(secondaryAuth, nuEmail.trim(), nuPass.trim())
       await signOut(secondaryAuth)
-      await setDoc(doc(db,'users', nuEmail.trim().replace(/[@.]/g,'_')), {
+      await setDoc(doc(db,'sapr_users', nuEmail.trim().replace(/[@.]/g,'_')), {
         email:       nuEmail.trim(),
         displayName: nuName.trim(),
         uid:         cred.user.uid,
