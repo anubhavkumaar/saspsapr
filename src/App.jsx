@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion, useScroll, useTransform, useInView, useMotionValue } from 'framer-motion'
 import './App.css'
 import logoRanger from './assets/C1i37hio.png'
@@ -338,34 +339,56 @@ function SectionDiv({ label }) {
 /* ─── NAVBAR ────────────────────────────────────────────── */
 function Navbar() {
   const [sc,setSc]=useState(false)
+  const loc=useLocation()
+  const onMain=loc.pathname==='/'
   useEffect(()=>{
     const h=()=>setSc(window.scrollY>50)
     window.addEventListener('scroll',h)
     return ()=>window.removeEventListener('scroll',h)
   },[])
-  const links=[
+  const anchorLinks=[
     {l:'Overview',href:'#overview'},{l:'Proposal',href:'#proposal'},
     {l:'Evidence',href:'#evidence'},{l:'Why SAPR',href:'#why'},
     {l:'Before Hunting',href:'#hunting-urgency'},{l:'Fishing Laws',href:'#fishing'},{l:'Map',href:'#map'},
-    {l:'Fishing Calls',href:'#fishing-evidence'},
+  ]
+  const routeLinks=[
+    {l:'Fishing Calls',to:'/fishingevidence'},
+    {l:'Join SAPR',    to:'/joinsapr'},
   ]
   return (
     <motion.nav className={`nav ${sc?'scrolled':''}`}
       initial={{y:-60}} animate={{y:0}} transition={{duration:.6,ease:'easeOut'}}>
-      <a href="#hero" className="nav-brand">
-        <div className="nav-logos">
-          <div className="nav-logo" style={{backgroundImage:`url(${logoRanger})`}}/>
-          <div className="nav-logo" style={{backgroundImage:`url(${logoState})`}}/>
-        </div>
-        <div className="nav-wordmark">
-          <span className="nav-title">SAPR</span>
-          <span className="nav-sub">San Andreas Park Rangers</span>
-        </div>
-      </a>
+      {onMain
+        ? <a href="#hero" className="nav-brand">
+            <div className="nav-logos">
+              <div className="nav-logo" style={{backgroundImage:`url(${logoRanger})`}}/>
+              <div className="nav-logo" style={{backgroundImage:`url(${logoState})`}}/>
+            </div>
+            <div className="nav-wordmark">
+              <span className="nav-title">SAPR</span>
+              <span className="nav-sub">San Andreas Park Rangers</span>
+            </div>
+          </a>
+        : <Link to="/" className="nav-brand">
+            <div className="nav-logos">
+              <div className="nav-logo" style={{backgroundImage:`url(${logoRanger})`}}/>
+              <div className="nav-logo" style={{backgroundImage:`url(${logoState})`}}/>
+            </div>
+            <div className="nav-wordmark">
+              <span className="nav-title">SAPR</span>
+              <span className="nav-sub">San Andreas Park Rangers</span>
+            </div>
+          </Link>
+      }
       <ul className="nav-links">
-        {links.map((l,i)=>(
+        {anchorLinks.map((l,i)=>(
           <motion.li key={l.href} initial={{opacity:0}} animate={{opacity:1}} transition={{delay:.15+i*.05}}>
-            <a className="nav-link" href={l.href}>{l.l}</a>
+            <a className="nav-link" href={onMain?l.href:`/${l.href}`}>{l.l}</a>
+          </motion.li>
+        ))}
+        {routeLinks.map((l,i)=>(
+          <motion.li key={l.to} initial={{opacity:0}} animate={{opacity:1}} transition={{delay:.15+(anchorLinks.length+i)*.05}}>
+            <Link className={`nav-link${loc.pathname===l.to?' nav-link--active':''}`} to={l.to}>{l.l}</Link>
           </motion.li>
         ))}
       </ul>
@@ -1381,19 +1404,545 @@ function FishingEvidenceSection() {
   )
 }
 
-/* ─── INTRO ─────────────────────────────────────────────── */
-function Intro({ onDone }) {
+/* ─── RECRUITMENT ───────────────────────────────────────── */
+const DEPARTMENTS = ['LSPD','BCSO','SASP','SAMS','DOC','Civilian','Other']
+
+function RecruitmentSection() {
+  const [name,    setName]    = useState('')
+  const [cid,     setCid]     = useState('')
+  const [dept,    setDept]    = useState('')
+  const [rank,    setRank]    = useState('')
+  const [avail,   setAvail]   = useState('')
+  const [why,     setWhy]     = useState('')
+  const [discord, setDiscord] = useState('')
+  const [busy,    setBusy]    = useState(false)
+  const [done,    setDone]    = useState(false)
+  const [err,     setErr]     = useState('')
+
+  const handleSubmit = async e => {
+    e.preventDefault(); setErr('')
+    if(!name.trim()||!cid.trim()||!dept||!why.trim()) return
+    setBusy(true)
+    try {
+      await addDoc(collection(db,'sapr_applications'),{
+        name:      name.trim(),
+        citizenId: cid.trim(),
+        department:dept,
+        rank:      rank.trim(),
+        availability: avail.trim(),
+        why:       why.trim(),
+        discord:   discord.trim(),
+        status:    'pending',
+        submittedAt: serverTimestamp(),
+      })
+      setDone(true)
+    } catch { setErr('Submission failed — please try again.') }
+    finally  { setBusy(false) }
+  }
+
   return (
-    <motion.div initial={{opacity:1}} animate={{opacity:0}} transition={{delay:3.5,duration:.8,ease:'easeOut'}}
-      onAnimationComplete={onDone}
-      style={{position:'fixed',inset:0,zIndex:999999,background:'#04060a',display:'flex',alignItems:'center',justifyContent:'center',pointerEvents:'none',overflow:'hidden'}}>
-      <video src="/cougar.mp4" autoPlay muted playsInline style={{width:'100%',height:'100%',objectFit:'cover'}}/>
-    </motion.div>
+    <section className="sec sec--alt" id="recruit">
+      <RunningAnimals type="forest"/>
+      <div className="sec-inner">
+        <Reveal>
+          <div className="sec-head">
+            <span className="sec-num" style={{color:'var(--em)'}}>JOIN</span>
+            <p className="sec-tag">Open Enrollment</p>
+            <SplitReveal text="San Andreas Park Rangers — Now Recruiting" className="sec-title" delay={.1} stagger={.024}/>
+            <FadeWords text="We don't recruit on paper. We recruit on effort. Show up, do the work, earn the badge." className="sec-sub"/>
+            <div className="sec-rule"/>
+          </div>
+        </Reveal>
+
+        {/* Announcement banner */}
+        <Reveal delay={.1}>
+          <div className="rec-announcement">
+            <div className="rec-ann-icon">&#128247;</div>
+            <div>
+              <div className="rec-ann-title">Expressions of Interest — Open Now</div>
+              <div className="rec-ann-body">
+                SAPR is accepting applications from officers across all departments — LSPD, BCSO, SASP — and qualified civilians.
+                There is no SOI process. No interview panel. No paper trail before you've proven yourself.
+                <br/><br/>
+                Submit your details below. You will be contacted by <strong>SAPR Command</strong> once your application is reviewed.
+                In the meantime — get out on the water, document violations, and let your work speak for you.
+              </div>
+            </div>
+          </div>
+        </Reveal>
+
+        {/* What we expect */}
+        <Reveal delay={.15}>
+          <div className="rec-pills">
+            {['Active field patrol','Fishing zone enforcement','Evidence documentation','MDT filing discipline','Teamwork across agencies'].map((p,i)=>(
+              <span key={i} className="rec-pill">&#10003; {p}</span>
+            ))}
+          </div>
+        </Reveal>
+
+        {/* Application form */}
+        <Reveal delay={.2}>
+          <div className="rec-form-wrap">
+            {done ? (
+              <div className="rec-success">
+                <div className="rec-success-icon">&#10003;</div>
+                <div className="rec-success-title">Application Received</div>
+                <div className="rec-success-sub">SAPR Command will review your submission and reach out. Keep patrolling.</div>
+              </div>
+            ) : (
+              <>
+                <h3 className="rec-form-title">Expression of Interest</h3>
+                <form className="rec-form" onSubmit={handleSubmit}>
+                  <div className="rec-row">
+                    <div className="rec-field">
+                      <label className="rec-label">In-Game Name <span className="rec-req">*</span></label>
+                      <input className="fe-input" placeholder="e.g. John Carter" value={name} onChange={e=>setName(e.target.value)} required/>
+                    </div>
+                    <div className="rec-field">
+                      <label className="rec-label">Citizen ID <span className="rec-req">*</span></label>
+                      <input className="fe-input" placeholder="e.g. 10942" value={cid} onChange={e=>setCid(e.target.value)} required/>
+                    </div>
+                  </div>
+                  <div className="rec-row">
+                    <div className="rec-field">
+                      <label className="rec-label">Current Department <span className="rec-req">*</span></label>
+                      <select className="fe-input fe-filter-select rec-select" value={dept} onChange={e=>setDept(e.target.value)} required>
+                        <option value="">— Select —</option>
+                        {DEPARTMENTS.map(d=><option key={d} value={d}>{d}</option>)}
+                      </select>
+                    </div>
+                    <div className="rec-field">
+                      <label className="rec-label">Current Rank / Callsign</label>
+                      <input className="fe-input" placeholder="e.g. Officer, Deputy, Sgt." value={rank} onChange={e=>setRank(e.target.value)}/>
+                    </div>
+                  </div>
+                  <div className="rec-field">
+                    <label className="rec-label">Availability (shifts / hours per week)</label>
+                    <input className="fe-input" placeholder="e.g. Evenings IST, ~4 hrs/week" value={avail} onChange={e=>setAvail(e.target.value)}/>
+                  </div>
+                  <div className="rec-field">
+                    <label className="rec-label">Why do you want to join SAPR? <span className="rec-req">*</span></label>
+                    <textarea className="fe-input rec-textarea" placeholder="Tell us what drives your interest in wildlife enforcement..." value={why} onChange={e=>setWhy(e.target.value)} rows={4} required/>
+                  </div>
+                  <div className="rec-field">
+                    <label className="rec-label">Discord Tag (optional)</label>
+                    <input className="fe-input" placeholder="e.g. username#0001" value={discord} onChange={e=>setDiscord(e.target.value)}/>
+                  </div>
+                  {err && <p className="fe-err">&#9888; {err}</p>}
+                  <button className="fe-add-btn rec-submit" type="submit" disabled={busy}>
+                    {busy ? 'Submitting…' : 'Submit Expression of Interest →'}
+                  </button>
+                </form>
+              </>
+            )}
+          </div>
+        </Reveal>
+      </div>
+    </section>
   )
 }
 
-/* ─── APP ───────────────────────────────────────────────── */
-export default function App() {
+/* ─── APPLICATIONS PANEL (management only) ──────────────── */
+function ApplicationsPanel({ user }) {
+  const [apps,    setApps]    = useState([])
+  const [filter,  setFilter]  = useState('all')
+
+  useEffect(()=>{
+    if(!user || user.email!==MANAGEMENT_EMAIL) return
+    const q = query(collection(db,'sapr_applications'), orderBy('submittedAt','desc'))
+    const unsub = onSnapshot(q, snap =>
+      setApps(snap.docs.map(d=>({ id:d.id, ...d.data() })))
+    )
+    return unsub
+  },[user])
+
+  if(!user || user.email!==MANAGEMENT_EMAIL) return null
+
+  const markReviewed = async id => {
+    const ref = doc(db,'sapr_applications',id)
+    const cur = apps.find(a=>a.id===id)
+    await setDoc(ref, { ...cur, status: cur.status==='reviewed'?'pending':'reviewed' })
+  }
+  const deleteApp = id => deleteDoc(doc(db,'sapr_applications',id))
+
+  const filtered = filter==='all' ? apps : apps.filter(a=>a.status===filter)
+  const counts   = { all:apps.length, pending:apps.filter(a=>a.status==='pending').length, reviewed:apps.filter(a=>a.status==='reviewed').length }
+
+  return (
+    <section className="sec sec--dark" id="applications">
+      <div className="sec-inner">
+        <Reveal>
+          <div className="sec-head">
+            <span className="sec-num" style={{color:'var(--gold)'}}>APPS</span>
+            <p className="sec-tag">Management Only</p>
+            <SplitReveal text="Recruitment Applications" className="sec-title" delay={.1} stagger={.028}/>
+            <div className="sec-rule"/>
+          </div>
+        </Reveal>
+
+        {/* Status filter */}
+        <Reveal delay={.1}>
+          <div className="fe-filter-bar" style={{marginBottom:'1.5rem'}}>
+            {['all','pending','reviewed'].map(s=>(
+              <button key={s} className={`app-filter-btn${filter===s?' app-filter-btn--active':''}`}
+                onClick={()=>setFilter(s)}>
+                {s==='all'?'All':s==='pending'?'Pending':'Reviewed'}
+                <span className="app-filter-count">{counts[s]}</span>
+              </button>
+            ))}
+          </div>
+        </Reveal>
+
+        {filtered.length===0 ? (
+          <div className="fe-empty">No applications yet.</div>
+        ) : (
+          <div className="app-list">
+            {filtered.map((app,i)=>(
+              <Reveal key={app.id} delay={Math.min(i*.06,.4)}>
+                <div className={`app-card${app.status==='reviewed'?' app-card--reviewed':''}`}>
+                  <div className="app-card-head">
+                    <div className="app-head-left">
+                      <span className="app-name">{app.name}</span>
+                      <span className="app-cid">CID: {app.citizenId}</span>
+                    </div>
+                    <div className="app-head-right">
+                      <span className={`app-status-badge${app.status==='reviewed'?' app-status-badge--ok':''}`}>
+                        {app.status==='reviewed'?'✓ Reviewed':'● Pending'}
+                      </span>
+                      <span className="app-dept">{app.department}{app.rank?` · ${app.rank}`:''}</span>
+                    </div>
+                  </div>
+                  <div className="app-why">{app.why}</div>
+                  <div className="app-footer">
+                    <div className="app-footer-meta">
+                      {app.availability && <span className="app-meta-item">&#128337; {app.availability}</span>}
+                      {app.discord      && <span className="app-meta-item">&#128172; {app.discord}</span>}
+                    </div>
+                    <div className="app-footer-actions">
+                      <button className="app-btn app-btn--review" onClick={()=>markReviewed(app.id)}>
+                        {app.status==='reviewed'?'Mark Pending':'Mark Reviewed'}
+                      </button>
+                      <button className="app-btn app-btn--del" onClick={()=>deleteApp(app.id)}>Delete</button>
+                    </div>
+                  </div>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
+/* ─── OFFICER LEADERBOARD ───────────────────────────────── */
+function OfficerLeaderboard() {
+  const [images, setImages] = useState([])
+  useEffect(()=>{
+    const q = query(collection(db,'fishing_evidence'), orderBy('createdAt','desc'))
+    const unsub = onSnapshot(q, snap =>
+      setImages(snap.docs.map(d=>({...d.data()})))
+    )
+    return unsub
+  },[])
+
+  const stats = Object.entries(
+    images.reduce((acc,img)=>{
+      const name = img.uploadedBy || 'Unknown'
+      if(!acc[name]) acc[name]={ count:0, last:'' }
+      acc[name].count++
+      if(!acc[name].last || (img.date && img.date > acc[name].last)) acc[name].last = img.date||''
+      return acc
+    },{})
+  ).sort((a,b)=>b[1].count-a[1].count)
+
+  const rankStyle = i => i===0
+    ? {color:'#f59e0b',borderColor:'rgba(245,158,11,0.4)',background:'rgba(245,158,11,0.07)'}
+    : i===1
+    ? {color:'#94a3b8',borderColor:'rgba(148,163,184,0.3)',background:'rgba(148,163,184,0.05)'}
+    : i===2
+    ? {color:'#cd7c3f',borderColor:'rgba(205,124,63,0.3)',background:'rgba(205,124,63,0.05)'}
+    : {color:'var(--t3)',borderColor:'var(--ln)',background:'transparent'}
+
+  return (
+    <section className="sec sec--dark" style={{paddingTop:'4rem'}}>
+      <div className="sec-inner">
+        <Reveal>
+          <div className="sec-head">
+            <span className="sec-num" style={{color:'var(--gold)'}}>LB</span>
+            <p className="sec-tag">Officer Activity</p>
+            <SplitReveal text="Contribution Leaderboard" className="sec-title" delay={.1} stagger={.028}/>
+            <FadeWords text="Ranked by evidence submissions — every upload counts toward building the case for SAPR" className="sec-sub"/>
+            <div className="sec-rule"/>
+          </div>
+        </Reveal>
+
+        {stats.length===0 ? (
+          <Reveal delay={.1}>
+            <div className="fe-empty">No submissions yet. Be the first to upload evidence.</div>
+          </Reveal>
+        ) : (
+          <div className="lb-grid">
+            {stats.map(([name,s],i)=>(
+              <Reveal key={name} delay={i*.07} dir={i%2===0?'left':'right'}>
+                <motion.div className="lb-card" style={rankStyle(i)} whileHover={{scale:1.02,y:-3}}>
+                  <div className="lb-rank" style={{color:rankStyle(i).color}}>
+                    {i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`}
+                  </div>
+                  <div className="lb-info">
+                    <div className="lb-name">{name}</div>
+                    {s.last && <div className="lb-date">Last active: {fmtDate(s.last)}</div>}
+                  </div>
+                  <div className="lb-count-wrap">
+                    <div className="lb-count" style={{color:rankStyle(i).color}}>
+                      <CountUp target={String(s.count)} delay={.1+i*.06}/>
+                    </div>
+                    <div className="lb-count-label">submission{s.count!==1?'s':''}</div>
+                  </div>
+                </motion.div>
+              </Reveal>
+            ))}
+          </div>
+        )}
+
+        <Reveal delay={.2}>
+          <div className="alert alert--danger" style={{marginTop:'2rem'}}>
+            <span className="alert-icon">▶</span>
+            <span>Rankings update in real time. Submit evidence through the gallery above — each documented violation strengthens the case for a dedicated SAPR unit.</span>
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  )
+}
+
+/* ─── FISHING EVIDENCE PAGE ─────────────────────────────── */
+/* ─── MDT SECTION ───────────────────────────────────────── */
+function MDTSection() {
+  const [entries,   setEntries]   = useState([])
+  const [user,      setUser]      = useState(null)
+  const [userMap,   setUserMap]   = useState({})
+  const [showLogin, setShowLogin] = useState(false)
+  const [email,     setEmail]     = useState('')
+  const [pass,      setPass]      = useState('')
+  const [loginErr,  setLoginErr]  = useState('')
+  const [busy,      setBusy]      = useState(false)
+  const [filterOfficer, setFilterOfficer] = useState('all')
+
+  // form fields
+  const [fType,     setFType]     = useState('mdt')   // 'mdt' | 'warning'
+  const [fCitizenId,setFCitizenId]= useState('')
+  const [fNotes,    setFNotes]    = useState('')
+  const [fDate,     setFDate]     = useState(getISTDate())
+
+  useEffect(()=>{
+    const unsub = onAuthStateChanged(auth, u => setUser(u))
+    return unsub
+  },[])
+
+  useEffect(()=>{
+    const q = query(collection(db,'sapr_mdt'), orderBy('createdAt','desc'))
+    const unsub = onSnapshot(q, snap =>
+      setEntries(snap.docs.map(d=>({ id:d.id, ...d.data() })))
+    )
+    return unsub
+  },[])
+
+  useEffect(()=>{
+    const unsub = onSnapshot(collection(db,'sapr_users'), snap => {
+      const m = {}
+      snap.docs.forEach(d=>{ m[d.data().email] = d.data().displayName })
+      setUserMap(m)
+    })
+    return unsub
+  },[])
+
+  const handleLogin = async e => {
+    e.preventDefault(); setLoginErr('')
+    try {
+      await signInWithEmailAndPassword(auth, email, pass)
+      setShowLogin(false); setEmail(''); setPass('')
+    } catch { setLoginErr('Invalid email or password.') }
+  }
+
+  const handleAdd = async e => {
+    e.preventDefault()
+    if(!fCitizenId.trim()) return
+    setBusy(true)
+    try {
+      await addDoc(collection(db,'sapr_mdt'),{
+        type:          fType,                       // 'mdt' | 'warning'
+        citizenId:     fCitizenId.trim(),
+        notes:         fNotes.trim(),
+        submittedBy:   getDisplayName(user.email, userMap),
+        submitterEmail:user.email,
+        date:          fDate,
+        createdAt:     serverTimestamp(),
+      })
+      setFCitizenId(''); setFNotes(''); setFDate(getISTDate()); setFType('mdt')
+    } finally { setBusy(false) }
+  }
+
+  const handleDelete = id => deleteDoc(doc(db,'sapr_mdt',id))
+
+  const officers = ['all',...Array.from(new Set(entries.map(e=>e.submittedBy||'Unknown')))]
+  const visible  = filterOfficer==='all' ? entries : entries.filter(e=>(e.submittedBy||'Unknown')===filterOfficer)
+
+  return (
+    <section className="sec sec--dark" id="mdt">
+      <div className="sec-inner">
+
+        {/* Header */}
+        <Reveal>
+          <div className="sec-head">
+            <span className="sec-num" style={{color:'var(--gold)'}}>MDT</span>
+            <p className="sec-tag">Mobile Data Terminal</p>
+            <SplitReveal text="MDT & Warning Log" className="sec-title" delay={.1} stagger={.028}/>
+            <FadeWords text="Record of MDTs filed and warnings issued to citizens — linked by Citizen ID" className="sec-sub"/>
+            <div className="fe-rule-row">
+              <div className="sec-rule" style={{margin:0}}/>
+              {!user && (
+                <button className="fe-lock" onClick={()=>setShowLogin(true)} title="Officer Login">&#128274;</button>
+              )}
+            </div>
+          </div>
+        </Reveal>
+
+        {/* Admin bar */}
+        {user && (
+          <Reveal>
+            <div className="fe-admin-bar" style={{marginBottom:'1rem'}}>
+              <span className="fe-admin-tag">&#9679; {getDisplayName(user.email,userMap)} — {user.email}</span>
+              <button className="fe-admin-signout" onClick={()=>signOut(auth)}>Sign Out</button>
+            </div>
+
+            {/* Add form */}
+            <div className="mdt-add-panel">
+              <h4 className="fe-mgmt-title" style={{marginBottom:'0.75rem'}}>Log New Entry</h4>
+              <form className="mdt-form" onSubmit={handleAdd}>
+                {/* Type toggle */}
+                <div className="mdt-type-toggle">
+                  <button type="button"
+                    className={`mdt-type-btn${fType==='mdt'?' mdt-type-btn--active':''}`}
+                    onClick={()=>setFType('mdt')}>
+                    &#128196; MDT Made
+                  </button>
+                  <button type="button"
+                    className={`mdt-type-btn mdt-type-btn--warn${fType==='warning'?' mdt-type-btn--active--warn':''}`}
+                    onClick={()=>setFType('warning')}>
+                    &#9888; Warning Given
+                  </button>
+                </div>
+                <input className="fe-input mdt-input--id"   placeholder="Citizen ID (e.g. 10942)" value={fCitizenId} onChange={e=>setFCitizenId(e.target.value)} required/>
+                <input className="fe-input fe-input--date"  type="date"                            value={fDate}      onChange={e=>setFDate(e.target.value)}      required/>
+                <textarea className="fe-input mdt-textarea" placeholder="Notes / details (optional)" value={fNotes}  onChange={e=>setFNotes(e.target.value)} rows={2}/>
+                <button className="fe-add-btn mdt-submit" type="submit" disabled={busy}>{busy?'Logging…':`+ Log ${fType==='mdt'?'MDT':'Warning'}`}</button>
+              </form>
+            </div>
+          </Reveal>
+        )}
+
+        {/* Filter + List */}
+        {entries.length===0 ? (
+          <Reveal delay={.2}>
+            <div className="fe-empty" style={{marginTop:'1.5rem'}}>No MDT entries logged yet.</div>
+          </Reveal>
+        ) : (
+          <Reveal delay={.1}>
+            {/* Filter bar */}
+            <div className="fe-filter-bar" style={{marginTop:'1.5rem'}}>
+              <span className="fe-filter-label">&#9660; Filter by officer</span>
+              <select className="fe-filter-select" value={filterOfficer} onChange={e=>setFilterOfficer(e.target.value)}>
+                {officers.map(o=>(
+                  <option key={o} value={o}>{o==='all'?'All Officers':o}</option>
+                ))}
+              </select>
+              {filterOfficer!=='all' && (
+                <span className="fe-filter-count">{visible.length} entr{visible.length!==1?'ies':'y'}</span>
+              )}
+            </div>
+
+            <div className="mdt-list">
+              {visible.map((entry,i)=>(
+                <motion.div key={entry.id}
+                  className={`mdt-row${entry.type==='warning'?' mdt-row--warn':''}`}
+                  initial={{opacity:0,x:-16}} whileInView={{opacity:1,x:0}}
+                  viewport={{once:true}} transition={{delay:Math.min(i*.05,.4)}}>
+                  <div className="mdt-id">
+                    <span className={`mdt-badge${entry.type==='warning'?' mdt-badge--warn':''}`}>
+                      {entry.type==='warning'?'WARN':'MDT'}
+                    </span>
+                    <span className="mdt-label">Citizen ID</span>
+                    <span className={`mdt-number${entry.type==='warning'?' mdt-number--warn':''}`}>
+                      {entry.citizenId||entry.mdtNumber||'—'}
+                    </span>
+                  </div>
+                  <div className="mdt-body">
+                    <div className="mdt-type-pill">
+                      {entry.type==='warning'?'⚠ Warning Issued':'📄 MDT Filed'}
+                    </div>
+                    {entry.notes && <div className="mdt-notes">{entry.notes}</div>}
+                  </div>
+                  <div className="mdt-meta">
+                    <span className="fe-uploader">&#9679; {entry.submittedBy||'Unknown'}</span>
+                    {entry.date && <span className="fe-date">{fmtDate(entry.date)}</span>}
+                    {user && (
+                      <button className="fe-del mdt-del" onClick={()=>handleDelete(entry.id)} title="Remove">&#10005;</button>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </Reveal>
+        )}
+      </div>
+
+      {/* Login modal */}
+      {showLogin && (
+        <div className="fe-modal" onClick={()=>setShowLogin(false)}>
+          <motion.div className="fe-modal-box" onClick={e=>e.stopPropagation()}
+            initial={{opacity:0,scale:.92,y:20}} animate={{opacity:1,scale:1,y:0}}
+            transition={{duration:.25,ease:'easeOut'}}>
+            <button className="fe-modal-close" onClick={()=>setShowLogin(false)}>&#10005;</button>
+            <h3 className="fe-modal-title">Officer Login</h3>
+            <p className="fe-modal-sub">Sign in to log or remove MDT entries.</p>
+            <form onSubmit={handleLogin} style={{display:'flex',flexDirection:'column',gap:'.7rem'}}>
+              <input className="fe-input" type="email" placeholder="Email" value={email}
+                onChange={e=>setEmail(e.target.value)} required autoFocus/>
+              <input className="fe-input" type="password" placeholder="Password" value={pass}
+                onChange={e=>setPass(e.target.value)} required/>
+              {loginErr && <p className="fe-err">{loginErr}</p>}
+              <button className="fe-add-btn" type="submit">Sign In</button>
+            </form>
+          </motion.div>
+        </div>
+      )}
+    </section>
+  )
+}
+
+function FishingEvidencePage() {
+  const [pageUser, setPageUser] = useState(null)
+  useEffect(()=>{
+    const unsub = onAuthStateChanged(auth, u => setPageUser(u))
+    return unsub
+  },[])
+  return (
+    <div style={{minHeight:'100vh',background:'var(--bg)'}}>
+      <Navbar/>
+      <div style={{paddingTop:'56px'}}>
+        <FishingEvidenceSection/>
+        <MDTSection/>
+        <ApplicationsPanel user={pageUser}/>
+        <OfficerLeaderboard/>
+        <Footer/>
+      </div>
+    </div>
+  )
+}
+
+/* ─── MAIN PAGE ─────────────────────────────────────────── */
+function MainPage() {
   const [done,setDone]=useState(false)
   return (
     <>
@@ -1416,9 +1965,42 @@ export default function App() {
       <MapSection/>
       <SectionDiv label="Section 08 — Formal Request"/>
       <FinalAskSection/>
-      <SectionDiv label="Section 09 — Fishing Calls & Illegal Fish Evidence"/>
-      <FishingEvidenceSection/>
       <Footer/>
     </>
+  )
+}
+
+/* ─── INTRO ─────────────────────────────────────────────── */
+function Intro({ onDone }) {
+  return (
+    <motion.div initial={{opacity:1}} animate={{opacity:0}} transition={{delay:3.5,duration:.8,ease:'easeOut'}}
+      onAnimationComplete={onDone}
+      style={{position:'fixed',inset:0,zIndex:999999,background:'#04060a',display:'flex',alignItems:'center',justifyContent:'center',pointerEvents:'none',overflow:'hidden'}}>
+      <video src="/cougar.mp4" autoPlay muted playsInline style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+    </motion.div>
+  )
+}
+
+/* ─── JOIN SAPR PAGE ────────────────────────────────────── */
+function JoinSAPRPage() {
+  return (
+    <div style={{minHeight:'100vh',background:'var(--bg)'}}>
+      <Navbar/>
+      <div style={{paddingTop:'56px'}}>
+        <RecruitmentSection/>
+        <Footer/>
+      </div>
+    </div>
+  )
+}
+
+/* ─── APP ───────────────────────────────────────────────── */
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<MainPage/>}/>
+      <Route path="/fishingevidence" element={<FishingEvidencePage/>}/>
+      <Route path="/joinsapr" element={<JoinSAPRPage/>}/>
+    </Routes>
   )
 }
