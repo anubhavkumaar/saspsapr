@@ -1112,23 +1112,24 @@ function FishingEvidenceSection() {
     if(!nuEmail.trim()||!nuPass.trim()||!nuName.trim()) return
     setNuBusy(true)
     try {
-      const cred = await createUserWithEmailAndPassword(secondaryAuth, nuEmail.trim(), nuPass.trim())
-      await signOut(secondaryAuth)
+      // Try creating auth account — if already exists, just update the name record
+      try {
+        await createUserWithEmailAndPassword(secondaryAuth, nuEmail.trim(), nuPass.trim())
+        await signOut(secondaryAuth)
+      } catch(authErr) {
+        if(authErr.code==='auth/weak-password') { setNuErr('Password must be at least 6 characters.'); setNuBusy(false); return }
+        if(authErr.code!=='auth/email-already-in-use') { setNuErr(authErr.message||'Auth error.'); setNuBusy(false); return }
+        // email-already-in-use → still save/update Firestore record below
+      }
       await setDoc(doc(db,'sapr_users', nuEmail.trim().replace(/[@.]/g,'_')), {
         email:       nuEmail.trim(),
         displayName: nuName.trim(),
-        uid:         cred.user.uid,
         createdAt:   serverTimestamp(),
       })
-      setNuOk(`Account created — ${nuName.trim()} (${nuEmail.trim()})`)
+      setNuOk(`Saved — ${nuName.trim()} (${nuEmail.trim()})`)
       setNuEmail(''); setNuPass(''); setNuName('')
     } catch(err) {
-      const msg = err.code==='auth/email-already-in-use'
-        ? 'That email already has an account.'
-        : err.code==='auth/weak-password'
-        ? 'Password must be at least 6 characters.'
-        : (err.message||'Failed to create account.')
-      setNuErr(msg)
+      setNuErr(err.message||'Failed to save.')
     } finally { setNuBusy(false) }
   }
 
