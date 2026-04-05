@@ -1478,7 +1478,7 @@ function RecruitmentSection() {
         {/* What we expect */}
         <Reveal delay={.15}>
           <div className="rec-pills">
-            {['SASP Troopers & LSPD Officers only','Meet Eddie & Rex in person','Quality field evidence','No quantity grinding','Response within 5–6 days'].map((p,i)=>(
+            {['Active & Dedicated Officers only','Meet Eddie & Rex in person','Quality field evidence','No quantity grinding(Overfining)','Response within 5–6 days'].map((p,i)=>(
               <span key={i} className="rec-pill">&#10003; {p}</span>
             ))}
           </div>
