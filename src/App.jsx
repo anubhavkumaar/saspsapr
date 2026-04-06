@@ -1525,7 +1525,7 @@ function FishingEvidenceSection() {
                 {visibleImages.map((img,i)=>(
                   <Reveal key={img.id} delay={Math.min(i*.08,.48)} dir={i%2===0?'left':'right'}>
                     <motion.div className="card card--flat fe-card" whileHover={{scale:1.02,y:-4}}>
-                      {user && (
+                      {user && (user.email===MANAGEMENT_EMAIL || user.email===img.uploaderEmail) && (
                         <button className="fe-del" onClick={()=>handleDelete(img.id)} title="Remove">&#10005;</button>
                       )}
                       <img src={img.url} alt={img.caption||'Fishing evidence'} className="fe-img" loading="lazy"
@@ -2111,7 +2111,7 @@ function MDTSection() {
                   <div className="mdt-meta">
                     <span className="fe-uploader">&#9679; {entry.submittedBy||'Unknown'}</span>
                     {entry.date && <span className="fe-date">{fmtDate(entry.date)}</span>}
-                    {user && (
+                    {user && (user.email===MANAGEMENT_EMAIL || user.email===entry.submitterEmail) && (
                       <button className="fe-del mdt-del" onClick={()=>handleDelete(entry.id)} title="Remove">&#10005;</button>
                     )}
                   </div>
