@@ -362,7 +362,7 @@ function Navbar() {
     ? [{l:'Home', to:'/'}]
     : [
         {l:'Home',      to:'/'},
-        {l:'Field Work',to:'/fishingevidence'},
+        {l:'Field Work',to:'/fieldwork'},
         {l:'Join',      to:'/joinsapr'},
         {l:'Proposal',  to:'/proposal'},
       ]
@@ -2247,7 +2247,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<MainPage/>}/>
-      <Route path="/fishingevidence" element={<FishingEvidencePage/>}/>
+      <Route path="/fieldwork" element={<FishingEvidencePage/>}/>
       <Route path="/joinsapr" element={<JoinSAPRPage/>}/>
       <Route path="/proposal" element={<ProposalPage/>}/>
     </Routes>
