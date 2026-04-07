@@ -1291,11 +1291,12 @@ function FishingEvidenceSection() {
   const [nuOk,     setNuOk]       = useState('')
   const [userList,    setUserList]    = useState([])
   const [shownPasses, setShownPasses] = useState(new Set())
-  const [resetTarget, setResetTarget] = useState(null)
-  const [resetPass,   setResetPass]   = useState('')
-  const [resetBusy,   setResetBusy]   = useState(false)
-  const [resetErr,    setResetErr]    = useState('')
-  const [resetOk,     setResetOk]     = useState('')
+  const [resetTarget,      setResetTarget]      = useState(null)
+  const [resetPass,        setResetPass]        = useState('')
+  const [resetCurrentPass, setResetCurrentPass] = useState('')
+  const [resetBusy,        setResetBusy]        = useState(false)
+  const [resetErr,         setResetErr]         = useState('')
+  const [resetOk,          setResetOk]          = useState('')
   const [lightbox, setLightbox] = useState(null)
   const [lbScale,  setLbScale]  = useState(1)
   const lbX      = useMotionValue(0)
@@ -1363,15 +1364,16 @@ function FishingEvidenceSection() {
   },[user])
 
   const handleResetPassword = async (email, storedPass) => {
-    if(!resetPass.trim()) return
+    const authPass = storedPass || resetCurrentPass.trim()
+    if(!resetPass.trim() || !authPass) return
     setResetBusy(true); setResetErr(''); setResetOk('')
     try {
-      await signInWithEmailAndPassword(secondaryAuth, email, storedPass)
+      await signInWithEmailAndPassword(secondaryAuth, email, authPass)
       await updatePassword(secondaryAuth.currentUser, resetPass.trim())
       await signOut(secondaryAuth)
       await setDoc(doc(db,'sapr_user_secrets', email.replace(/[@.]/g,'_')), { password: resetPass.trim() }, { merge: true })
       setResetOk('Password updated.')
-      setResetTarget(null); setResetPass('')
+      setResetTarget(null); setResetPass(''); setResetCurrentPass('')
     } catch(err) {
       setResetErr(err.message||'Failed to reset.')
     } finally { setResetBusy(false) }
@@ -1528,16 +1530,21 @@ function FishingEvidenceSection() {
                         <button className="fe-mgmt-btn" onClick={()=>setShownPasses(s=>{const n=new Set(s);n.has(u.email)?n.delete(u.email):n.add(u.email);return n})}>
                           {shownPasses.has(u.email)?'Hide':'Show'}
                         </button>
-                        <button className="fe-mgmt-btn" onClick={()=>{setResetTarget(u.email);setResetPass('');setResetErr('');setResetOk('')}}>
+                        <button className="fe-mgmt-btn" onClick={()=>{setResetTarget(u.email);setResetPass('');setResetCurrentPass('');setResetErr('');setResetOk('')}}>
                           Reset
                         </button>
                       </div>
                       {resetTarget===u.email && (
                         <>
+                          {!storedPass && (
+                            <input className="fe-input" type="password" placeholder="Current password (required)" value={resetCurrentPass}
+                              onChange={e=>setResetCurrentPass(e.target.value)} autoComplete="current-password"/>
+                          )}
                           <div style={{display:'flex',gap:'.4rem'}}>
                             <input className="fe-input" type="password" placeholder="New password (min 6)" value={resetPass}
                               onChange={e=>setResetPass(e.target.value)} minLength={6} autoComplete="new-password" style={{flex:1}}/>
-                            <button className="fe-mgmt-btn fe-mgmt-btn--save" disabled={resetBusy||resetPass.length<6}
+                            <button className="fe-mgmt-btn fe-mgmt-btn--save"
+                              disabled={resetBusy||resetPass.length<6||(!storedPass&&!resetCurrentPass.trim())}
                               onClick={()=>handleResetPassword(u.email, storedPass)}>
                               {resetBusy?'…':'Save'}
                             </button>
