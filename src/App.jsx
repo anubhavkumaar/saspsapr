@@ -1344,11 +1344,23 @@ function FishingEvidenceSection() {
   useEffect(()=>{
     const unsub = onSnapshot(collection(db,'sapr_users'), snap => {
       const map = {}; const list = []
-      snap.docs.forEach(d=>{ const {email,displayName,password}=d.data(); if(email){ map[email]=displayName; list.push({email,displayName,password}) } })
+      snap.docs.forEach(d=>{ const {email,displayName}=d.data(); if(email){ map[email]=displayName; list.push({email,displayName}) } })
       setUserMap(map); setUserList(list)
     })
     return unsub
   },[])
+
+  // Load passwords from private collection — only works when signed in as management
+  const [secretsMap, setSecretsMap] = useState({}) // docId → password
+  useEffect(()=>{
+    if(!user || !MANAGEMENT_EMAIL.includes(user.email)) return
+    const unsub = onSnapshot(collection(db,'sapr_user_secrets'), snap => {
+      const m = {}
+      snap.docs.forEach(d=>{ m[d.id] = d.data().password })
+      setSecretsMap(m)
+    })
+    return unsub
+  },[user])
 
   const handleResetPassword = async (email, storedPass) => {
     if(!resetPass.trim()) return
@@ -1357,7 +1369,7 @@ function FishingEvidenceSection() {
       await signInWithEmailAndPassword(secondaryAuth, email, storedPass)
       await updatePassword(secondaryAuth.currentUser, resetPass.trim())
       await signOut(secondaryAuth)
-      await setDoc(doc(db,'sapr_users', email.replace(/[@.]/g,'_')), { password: resetPass.trim() }, { merge: true })
+      await setDoc(doc(db,'sapr_user_secrets', email.replace(/[@.]/g,'_')), { password: resetPass.trim() }, { merge: true })
       setResetOk('Password updated.')
       setResetTarget(null); setResetPass('')
     } catch(err) {
@@ -1379,12 +1391,13 @@ function FishingEvidenceSection() {
         if(authErr.code!=='auth/email-already-in-use') { setNuErr(authErr.message||'Auth error.'); setNuBusy(false); return }
         // email-already-in-use → still save/update Firestore record below
       }
-      await setDoc(doc(db,'sapr_users', nuEmail.trim().replace(/[@.]/g,'_')), {
+      const docId = nuEmail.trim().replace(/[@.]/g,'_')
+      await setDoc(doc(db,'sapr_users', docId), {
         email:       nuEmail.trim(),
         displayName: nuName.trim(),
-        password:    nuPass.trim(),
         createdAt:   serverTimestamp(),
       })
+      await setDoc(doc(db,'sapr_user_secrets', docId), { password: nuPass.trim() })
       setNuOk(`Saved — ${nuName.trim()} (${nuEmail.trim()})`)
       setNuEmail(''); setNuPass(''); setNuName('')
     } catch(err) {
@@ -1498,7 +1511,10 @@ function FishingEvidenceSection() {
                 </form>
                 <h4 className="fe-mgmt-title" style={{marginTop:'1.25rem'}}>Registered Officers</h4>
                 <div className="fe-mgmt-list">
-                  {userList.map((u,i)=>(
+                  {userList.map((u,i)=>{
+                    const docId = u.email.replace(/[@.]/g,'_')
+                    const storedPass = secretsMap[docId]
+                    return (
                     <div key={i} className="fe-mgmt-row" style={{flexDirection:'column',alignItems:'stretch',gap:'.35rem'}}>
                       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                         <span className="fe-mgmt-name">{u.displayName}</span>
@@ -1507,7 +1523,7 @@ function FishingEvidenceSection() {
                       <div style={{display:'flex',alignItems:'center',gap:'.5rem',fontSize:'.82rem'}}>
                         <span style={{color:'#aaa'}}>Pass:</span>
                         <code style={{flex:1,letterSpacing:'1px',color:'#ccc'}}>
-                          {shownPasses.has(u.email) ? (u.password||'—') : '••••••••'}
+                          {shownPasses.has(u.email) ? (storedPass||'—') : '••••••••'}
                         </code>
                         <button className="fe-mgmt-btn" onClick={()=>setShownPasses(s=>{const n=new Set(s);n.has(u.email)?n.delete(u.email):n.add(u.email);return n})}>
                           {shownPasses.has(u.email)?'Hide':'Show'}
@@ -1522,7 +1538,7 @@ function FishingEvidenceSection() {
                             <input className="fe-input" type="password" placeholder="New password (min 6)" value={resetPass}
                               onChange={e=>setResetPass(e.target.value)} minLength={6} autoComplete="new-password" style={{flex:1}}/>
                             <button className="fe-mgmt-btn fe-mgmt-btn--save" disabled={resetBusy||resetPass.length<6}
-                              onClick={()=>handleResetPassword(u.email, u.password)}>
+                              onClick={()=>handleResetPassword(u.email, storedPass)}>
                               {resetBusy?'…':'Save'}
                             </button>
                             <button className="fe-mgmt-btn" onClick={()=>setResetTarget(null)}>Cancel</button>
@@ -1532,7 +1548,8 @@ function FishingEvidenceSection() {
                         </>
                       )}
                     </div>
-                  ))}
+                  )})}
+
                   {Object.entries(USER_NAMES_FALLBACK).filter(([em])=>!userList.some(u=>u.email===em)).map(([em,name],i)=>(
                     <div key={'fb'+i} className="fe-mgmt-row">
                       <span className="fe-mgmt-name">{name}</span>
