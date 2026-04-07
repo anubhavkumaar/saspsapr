@@ -65,10 +65,11 @@ const WHY = [
 ]
 
 /* ─── USER DISPLAY NAMES ────────────────────────────────── */
-const MANAGEMENT_EMAIL = 'sapr@anubhav.gg'
+const MANAGEMENT_EMAIL = ['sapr@anubhav.gg', 'eddiebrock@sapr.gg']
 // Static fallback — Firestore `users` collection is the live source of truth
 const USER_NAMES_FALLBACK = {
   'sapr@anubhav.gg':       'SAPR Management',
+  'eddiebrock@sapr.gg':   'Eddie Brock',
   'sasp@sapr.gg':         'SASP High Command',
   'sapr@anubhav.gg':      'SAPR Management',
   'rickyshawn@saspr.gg':  'Ricky Shawn',
@@ -1435,7 +1436,7 @@ function FishingEvidenceSection() {
             <div className="fe-admin-bar">
               <span className="fe-admin-tag">&#9679; {getDisplayName(user.email,userMap)} — {user.email}</span>
               <div className="fe-admin-actions">
-                {user.email===MANAGEMENT_EMAIL && (
+                {MANAGEMENT_EMAIL.includes(user.email) && (
                   <button className="fe-admin-mgmt" onClick={()=>{setShowUserMgmt(v=>!v);setNuErr('');setNuOk('')}}>
                     {showUserMgmt?'▲ Close':'👤 Manage Users'}
                   </button>
@@ -1445,7 +1446,7 @@ function FishingEvidenceSection() {
             </div>
 
             {/* Manage Users panel — management only */}
-            {showUserMgmt && user.email===MANAGEMENT_EMAIL && (
+            {showUserMgmt && MANAGEMENT_EMAIL.includes(user.email) && (
               <div className="fe-mgmt-panel">
                 <h4 className="fe-mgmt-title">Create Officer Account</h4>
                 <form className="fe-mgmt-form" onSubmit={handleCreateUser}>
@@ -1525,7 +1526,7 @@ function FishingEvidenceSection() {
                 {visibleImages.map((img,i)=>(
                   <Reveal key={img.id} delay={Math.min(i*.08,.48)} dir={i%2===0?'left':'right'}>
                     <motion.div className="card card--flat fe-card" whileHover={{scale:1.02,y:-4}}>
-                      {user && (user.email===MANAGEMENT_EMAIL || user.email===img.uploaderEmail) && (
+                      {user && (MANAGEMENT_EMAIL.includes(user.email) || user.email===img.uploaderEmail) && (
                         <button className="fe-del" onClick={()=>handleDelete(img.id)} title="Remove">&#10005;</button>
                       )}
                       <img src={img.url} alt={img.caption||'Fishing evidence'} className="fe-img" loading="lazy"
@@ -1773,7 +1774,7 @@ function ApplicationsPanel({ user }) {
   const [filter,  setFilter]  = useState('all')
 
   useEffect(()=>{
-    if(!user || user.email!==MANAGEMENT_EMAIL) return
+    if(!user || !MANAGEMENT_EMAIL.includes(user.email)) return
     const q = query(collection(db,'sapr_applications'), orderBy('submittedAt','desc'))
     const unsub = onSnapshot(q, snap =>
       setApps(snap.docs.map(d=>({ id:d.id, ...d.data() })))
@@ -1781,7 +1782,7 @@ function ApplicationsPanel({ user }) {
     return unsub
   },[user])
 
-  if(!user || user.email!==MANAGEMENT_EMAIL) return null
+  if(!user || !MANAGEMENT_EMAIL.includes(user.email)) return null
 
   const markReviewed = async id => {
     const ref = doc(db,'sapr_applications',id)
@@ -2111,7 +2112,7 @@ function MDTSection() {
                   <div className="mdt-meta">
                     <span className="fe-uploader">&#9679; {entry.submittedBy||'Unknown'}</span>
                     {entry.date && <span className="fe-date">{fmtDate(entry.date)}</span>}
-                    {user && (user.email===MANAGEMENT_EMAIL || user.email===entry.submitterEmail) && (
+                    {user && (MANAGEMENT_EMAIL.includes(user.email) || user.email===entry.submitterEmail) && (
                       <button className="fe-del mdt-del" onClick={()=>handleDelete(entry.id)} title="Remove">&#10005;</button>
                     )}
                   </div>
