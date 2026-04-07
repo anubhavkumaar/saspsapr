@@ -6,7 +6,7 @@ import logoRanger from './assets/C1i37hio.png'
 import logoState  from './assets/Ci37h33io.png'
 import { db, auth, firebaseConfig } from './firebase'
 import { collection, addDoc, deleteDoc, doc, setDoc, getDocs, query, orderBy, onSnapshot, serverTimestamp } from 'firebase/firestore'
-import { signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword } from 'firebase/auth'
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, updatePassword } from 'firebase/auth'
 import { initializeApp, getApps } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
 
@@ -333,6 +333,19 @@ function SectionDiv({ label }) {
       <span className="div-label">{label}</span>
       <div className="div-dot"/>
       <div className="div-line"/>
+    </div>
+  )
+}
+
+/* ─── PAGINATOR ─────────────────────────────────────────── */
+function Paginator({ page, total, perPage, onChange }) {
+  const totalPages = Math.ceil(total / perPage)
+  if(totalPages <= 1) return null
+  return (
+    <div className="pg-bar">
+      <button className="pg-btn" onClick={()=>onChange(page-1)} disabled={page===0}>&#8592; Prev</button>
+      <span className="pg-info">Page {page+1} of {totalPages}</span>
+      <button className="pg-btn" onClick={()=>onChange(page+1)} disabled={page>=totalPages-1}>Next &#8594;</button>
     </div>
   )
 }
@@ -1267,6 +1280,7 @@ function FishingEvidenceSection() {
   const [newDate,  setNewDate]  = useState(getISTDate())
   const [busy,     setBusy]     = useState(false)
   const [filterUser,setFilterUser]= useState('all')
+  const [imgPage,   setImgPage]   = useState(0)
   const [userMap,   setUserMap]   = useState({})   // email→displayName from Firestore
   const [showUserMgmt,setShowUserMgmt]= useState(false)
   const [nuEmail,  setNuEmail]    = useState('')
@@ -1275,6 +1289,13 @@ function FishingEvidenceSection() {
   const [nuBusy,   setNuBusy]     = useState(false)
   const [nuErr,    setNuErr]      = useState('')
   const [nuOk,     setNuOk]       = useState('')
+  const [userList,    setUserList]    = useState([])
+  const [shownPasses, setShownPasses] = useState(new Set())
+  const [resetTarget, setResetTarget] = useState(null)
+  const [resetPass,   setResetPass]   = useState('')
+  const [resetBusy,   setResetBusy]   = useState(false)
+  const [resetErr,    setResetErr]    = useState('')
+  const [resetOk,     setResetOk]     = useState('')
   const [lightbox, setLightbox] = useState(null)
   const [lbScale,  setLbScale]  = useState(1)
   const lbX      = useMotionValue(0)
@@ -1322,12 +1343,27 @@ function FishingEvidenceSection() {
 
   useEffect(()=>{
     const unsub = onSnapshot(collection(db,'sapr_users'), snap => {
-      const map = {}
-      snap.docs.forEach(d=>{ const {email,displayName}=d.data(); if(email) map[email]=displayName })
-      setUserMap(map)
+      const map = {}; const list = []
+      snap.docs.forEach(d=>{ const {email,displayName,password}=d.data(); if(email){ map[email]=displayName; list.push({email,displayName,password}) } })
+      setUserMap(map); setUserList(list)
     })
     return unsub
   },[])
+
+  const handleResetPassword = async (email, storedPass) => {
+    if(!resetPass.trim()) return
+    setResetBusy(true); setResetErr(''); setResetOk('')
+    try {
+      await signInWithEmailAndPassword(secondaryAuth, email, storedPass)
+      await updatePassword(secondaryAuth.currentUser, resetPass.trim())
+      await signOut(secondaryAuth)
+      await setDoc(doc(db,'sapr_users', email.replace(/[@.]/g,'_')), { password: resetPass.trim() }, { merge: true })
+      setResetOk('Password updated.')
+      setResetTarget(null); setResetPass('')
+    } catch(err) {
+      setResetErr(err.message||'Failed to reset.')
+    } finally { setResetBusy(false) }
+  }
 
   const handleCreateUser = async e => {
     e.preventDefault(); setNuErr(''); setNuOk('')
@@ -1346,6 +1382,7 @@ function FishingEvidenceSection() {
       await setDoc(doc(db,'sapr_users', nuEmail.trim().replace(/[@.]/g,'_')), {
         email:       nuEmail.trim(),
         displayName: nuName.trim(),
+        password:    nuPass.trim(),
         createdAt:   serverTimestamp(),
       })
       setNuOk(`Saved — ${nuName.trim()} (${nuEmail.trim()})`)
@@ -1406,8 +1443,10 @@ function FishingEvidenceSection() {
 
   const handleDelete = id => deleteDoc(doc(db,'fishing_evidence',id))
 
+  const IMG_PER_PAGE = 12
   const uploaders = ['all',...Array.from(new Set(images.map(img=>img.uploadedBy||'Unknown')))]
   const visibleImages = filterUser==='all' ? images : images.filter(img=>(img.uploadedBy||'Unknown')===filterUser)
+  const pagedImages = visibleImages.slice(imgPage*IMG_PER_PAGE, (imgPage+1)*IMG_PER_PAGE)
 
   return (
     <section className="sec sec--alt" id="fishing-evidence">
@@ -1449,18 +1488,53 @@ function FishingEvidenceSection() {
             {showUserMgmt && MANAGEMENT_EMAIL.includes(user.email) && (
               <div className="fe-mgmt-panel">
                 <h4 className="fe-mgmt-title">Create Officer Account</h4>
-                <form className="fe-mgmt-form" onSubmit={handleCreateUser}>
-                  <input className="fe-input" placeholder="Display name (e.g. Sgt. Rex Davis)" value={nuName} onChange={e=>setNuName(e.target.value)} required/>
-                  <input className="fe-input" type="email" placeholder="Email address" value={nuEmail} onChange={e=>setNuEmail(e.target.value)} required/>
-                  <input className="fe-input" type="password" placeholder="Password (min 6 chars)" value={nuPass} onChange={e=>setNuPass(e.target.value)} required minLength={6}/>
+                <form className="fe-mgmt-form" onSubmit={handleCreateUser} autoComplete="off">
+                  <input className="fe-input" placeholder="Display name (e.g. Sgt. Rex Davis)" value={nuName} onChange={e=>setNuName(e.target.value)} required autoComplete="off"/>
+                  <input className="fe-input" type="email" placeholder="Email address" value={nuEmail} onChange={e=>setNuEmail(e.target.value)} required autoComplete="off"/>
+                  <input className="fe-input" type="password" placeholder="Password (min 6 chars)" value={nuPass} onChange={e=>setNuPass(e.target.value)} required minLength={6} autoComplete="new-password"/>
                   {nuErr && <p className="fe-err">&#9888; {nuErr}</p>}
                   {nuOk  && <p className="fe-ok">&#10003; {nuOk}</p>}
                   <button className="fe-add-btn" type="submit" disabled={nuBusy}>{nuBusy?'Creating…':'+ Create Account'}</button>
                 </form>
                 <h4 className="fe-mgmt-title" style={{marginTop:'1.25rem'}}>Registered Officers</h4>
                 <div className="fe-mgmt-list">
-                  {Object.entries({...USER_NAMES_FALLBACK,...userMap}).map(([em,name],i)=>(
-                    <div key={i} className="fe-mgmt-row">
+                  {userList.map((u,i)=>(
+                    <div key={i} className="fe-mgmt-row" style={{flexDirection:'column',alignItems:'stretch',gap:'.35rem'}}>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                        <span className="fe-mgmt-name">{u.displayName}</span>
+                        <span className="fe-mgmt-email">{u.email}</span>
+                      </div>
+                      <div style={{display:'flex',alignItems:'center',gap:'.5rem',fontSize:'.82rem'}}>
+                        <span style={{color:'#aaa'}}>Pass:</span>
+                        <code style={{flex:1,letterSpacing:'1px',color:'#ccc'}}>
+                          {shownPasses.has(u.email) ? (u.password||'—') : '••••••••'}
+                        </code>
+                        <button className="fe-mgmt-btn" onClick={()=>setShownPasses(s=>{const n=new Set(s);n.has(u.email)?n.delete(u.email):n.add(u.email);return n})}>
+                          {shownPasses.has(u.email)?'Hide':'Show'}
+                        </button>
+                        <button className="fe-mgmt-btn" onClick={()=>{setResetTarget(u.email);setResetPass('');setResetErr('');setResetOk('')}}>
+                          Reset
+                        </button>
+                      </div>
+                      {resetTarget===u.email && (
+                        <>
+                          <div style={{display:'flex',gap:'.4rem'}}>
+                            <input className="fe-input" type="password" placeholder="New password (min 6)" value={resetPass}
+                              onChange={e=>setResetPass(e.target.value)} minLength={6} autoComplete="new-password" style={{flex:1}}/>
+                            <button className="fe-mgmt-btn fe-mgmt-btn--save" disabled={resetBusy||resetPass.length<6}
+                              onClick={()=>handleResetPassword(u.email, u.password)}>
+                              {resetBusy?'…':'Save'}
+                            </button>
+                            <button className="fe-mgmt-btn" onClick={()=>setResetTarget(null)}>Cancel</button>
+                          </div>
+                          {resetErr && <p className="fe-err" style={{margin:0}}>&#9888; {resetErr}</p>}
+                          {resetOk  && <p className="fe-ok"  style={{margin:0}}>&#10003; {resetOk}</p>}
+                        </>
+                      )}
+                    </div>
+                  ))}
+                  {Object.entries(USER_NAMES_FALLBACK).filter(([em])=>!userList.some(u=>u.email===em)).map(([em,name],i)=>(
+                    <div key={'fb'+i} className="fe-mgmt-row">
                       <span className="fe-mgmt-name">{name}</span>
                       <span className="fe-mgmt-email">{em}</span>
                     </div>
@@ -1509,7 +1583,7 @@ function FishingEvidenceSection() {
             {/* Filter bar */}
             <div className="fe-filter-bar">
               <span className="fe-filter-label">&#9660; Filter by officer</span>
-              <select className="fe-filter-select" value={filterUser} onChange={e=>setFilterUser(e.target.value)}>
+              <select className="fe-filter-select" value={filterUser} onChange={e=>{setFilterUser(e.target.value);setImgPage(0)}}>
                 {uploaders.map(u=>(
                   <option key={u} value={u}>{u==='all'?'All Officers':u}</option>
                 ))}
@@ -1522,26 +1596,29 @@ function FishingEvidenceSection() {
             {visibleImages.length===0 ? (
               <div className="fe-empty">No evidence from this officer yet.</div>
             ) : (
-              <div className="fe-grid">
-                {visibleImages.map((img,i)=>(
-                  <Reveal key={img.id} delay={Math.min(i*.08,.48)} dir={i%2===0?'left':'right'}>
-                    <motion.div className="card card--flat fe-card" whileHover={{scale:1.02,y:-4}}>
-                      {user && (MANAGEMENT_EMAIL.includes(user.email) || user.email===img.uploaderEmail) && (
-                        <button className="fe-del" onClick={()=>handleDelete(img.id)} title="Remove">&#10005;</button>
-                      )}
-                      <img src={img.url} alt={img.caption||'Fishing evidence'} className="fe-img" loading="lazy"
-                        onClick={()=>setLightbox(img)}/>
-                      <div className="fe-card-footer">
-                        {img.caption && <p className="fe-cap">{img.caption}</p>}
-                        <div className="fe-card-meta">
-                          {img.date && <span className="fe-date">{fmtDate(img.date)}</span>}
-                          <span className="fe-uploader">&#9679; {img.uploadedBy||'Unknown'}</span>
+              <>
+                <div className="fe-grid">
+                  {pagedImages.map((img,i)=>(
+                    <Reveal key={img.id} delay={Math.min(i*.08,.48)} dir={i%2===0?'left':'right'}>
+                      <motion.div className="card card--flat fe-card" whileHover={{scale:1.02,y:-4}}>
+                        {user && (MANAGEMENT_EMAIL.includes(user.email) || user.email===img.uploaderEmail) && (
+                          <button className="fe-del" onClick={()=>handleDelete(img.id)} title="Remove">&#10005;</button>
+                        )}
+                        <img src={img.url} alt={img.caption||'Fishing evidence'} className="fe-img" loading="lazy"
+                          onClick={()=>setLightbox(img)}/>
+                        <div className="fe-card-footer">
+                          {img.caption && <p className="fe-cap">{img.caption}</p>}
+                          <div className="fe-card-meta">
+                            {img.date && <span className="fe-date">{fmtDate(img.date)}</span>}
+                            <span className="fe-uploader">&#9679; {img.uploadedBy||'Unknown'}</span>
+                          </div>
                         </div>
-                      </div>
-                    </motion.div>
-                  </Reveal>
-                ))}
-              </div>
+                      </motion.div>
+                    </Reveal>
+                  ))}
+                </div>
+                <Paginator page={imgPage} total={visibleImages.length} perPage={IMG_PER_PAGE} onChange={setImgPage}/>
+              </>
             )}
           </>
         )}
@@ -1954,6 +2031,7 @@ function MDTSection() {
   const [loginErr,  setLoginErr]  = useState('')
   const [busy,      setBusy]      = useState(false)
   const [filterOfficer, setFilterOfficer] = useState('all')
+  const [mdtPage,       setMdtPage]       = useState(0)
 
   // form fields
   const [fType,     setFType]     = useState('mdt')   // 'mdt' | 'warning'
@@ -2011,8 +2089,10 @@ function MDTSection() {
 
   const handleDelete = id => deleteDoc(doc(db,'sapr_mdt',id))
 
+  const MDT_PER_PAGE = 10
   const officers = ['all',...Array.from(new Set(entries.map(e=>e.submittedBy||'Unknown')))]
   const visible  = filterOfficer==='all' ? entries : entries.filter(e=>(e.submittedBy||'Unknown')===filterOfficer)
+  const pagedEntries = visible.slice(mdtPage*MDT_PER_PAGE, (mdtPage+1)*MDT_PER_PAGE)
 
   return (
     <section className="sec sec--dark" id="mdt">
@@ -2078,7 +2158,7 @@ function MDTSection() {
             {/* Filter bar */}
             <div className="fe-filter-bar" style={{marginTop:'1.5rem'}}>
               <span className="fe-filter-label">&#9660; Filter by officer</span>
-              <select className="fe-filter-select" value={filterOfficer} onChange={e=>setFilterOfficer(e.target.value)}>
+              <select className="fe-filter-select" value={filterOfficer} onChange={e=>{setFilterOfficer(e.target.value);setMdtPage(0)}}>
                 {officers.map(o=>(
                   <option key={o} value={o}>{o==='all'?'All Officers':o}</option>
                 ))}
@@ -2089,7 +2169,7 @@ function MDTSection() {
             </div>
 
             <div className="mdt-list">
-              {visible.map((entry,i)=>(
+              {pagedEntries.map((entry,i)=>(
                 <motion.div key={entry.id}
                   className={`mdt-row${entry.type==='warning'?' mdt-row--warn':''}`}
                   initial={{opacity:0,x:-16}} whileInView={{opacity:1,x:0}}
@@ -2119,6 +2199,7 @@ function MDTSection() {
                 </motion.div>
               ))}
             </div>
+              <Paginator page={mdtPage} total={visible.length} perPage={MDT_PER_PAGE} onChange={setMdtPage}/>
           </Reveal>
         )}
       </div>

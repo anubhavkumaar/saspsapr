@@ -1142,6 +1142,42 @@
 }
 .fe-mgmt-name  { font: 600 13px/1 var(--ui); color: var(--t1); }
 .fe-mgmt-email { font: 400 11px/1 var(--mono); color: var(--t3); }
+.fe-mgmt-btn {
+  padding: 0.2rem 0.55rem;
+  font: 600 11px/1 var(--ui);
+  background: var(--s3);
+  color: var(--t2);
+  border: 1px solid var(--ln);
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.fe-mgmt-btn:hover { background: var(--s4); color: var(--t1); }
+.fe-mgmt-btn--save { background: var(--acc); color: #fff; border-color: var(--acc); }
+.fe-mgmt-btn--save:hover { opacity: .88; }
+.fe-mgmt-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ─── PAGINATOR ─────────────────────────────────────────── */
+.pg-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1.75rem;
+}
+.pg-btn {
+  padding: 0.4rem 1rem;
+  font: 600 13px/1 var(--ui);
+  background: var(--s2);
+  color: var(--t2);
+  border: 1px solid var(--ln);
+  border-radius: var(--r);
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.pg-btn:hover:not(:disabled) { background: var(--acc); color: #fff; border-color: var(--acc); }
+.pg-btn:disabled { opacity: .35; cursor: not-allowed; }
+.pg-info { font: 500 13px/1 var(--ui); color: var(--t3); }
 
 /* Lightbox */
 .fe-lightbox {
