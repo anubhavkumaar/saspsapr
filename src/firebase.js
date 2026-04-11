@@ -5,7 +5,8 @@
 // Also make sure to:
 // 1. Enable Email/Password auth: Authentication → Sign-in method → Email/Password → Enable
 // 2. Create Firestore DB: Firestore Database → Create database (start in production mode)
-// 3. Set Firestore rules:
+// 3. Set Firestore rules (Firestore Database → Rules):
+//
 //      rules_version = '2';
 //      service cloud.firestore {
 //        match /databases/{database}/documents {
@@ -13,9 +14,32 @@
 //            allow read: if true;
 //            allow write: if request.auth != null;
 //          }
-//          match /users/{doc} {
+//          match /sapr_mdt/{doc} {
 //            allow read: if true;
 //            allow write: if request.auth != null;
+//          }
+//          match /sapr_users/{doc} {
+//            allow read: if true;
+//            allow write: if request.auth != null;
+//          }
+//          match /sapr_user_secrets/{doc} {
+//            allow read, write: if request.auth != null
+//              && request.auth.token.email in [
+//                'sapr@anubhav.gg',
+//                'eddiebrock@sapr.gg'
+//              ];
+//          }
+//          match /sapr_applications/{doc} {
+//            allow create: if true;
+//            allow read, update, delete: if request.auth != null;
+//          }
+//          match /sapr_config/{doc} {
+//            allow read: if true;
+//            allow write: if request.auth != null
+//              && request.auth.token.email in [
+//                'sapr@anubhav.gg',
+//                'eddiebrock@sapr.gg'
+//              ];
 //          }
 //        }
 //      }

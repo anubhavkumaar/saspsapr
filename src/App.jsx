@@ -1282,21 +1282,6 @@ function FishingEvidenceSection() {
   const [filterUser,setFilterUser]= useState('all')
   const [imgPage,   setImgPage]   = useState(0)
   const [userMap,   setUserMap]   = useState({})   // email→displayName from Firestore
-  const [showUserMgmt,setShowUserMgmt]= useState(false)
-  const [nuEmail,  setNuEmail]    = useState('')
-  const [nuPass,   setNuPass]     = useState('')
-  const [nuName,   setNuName]     = useState('')
-  const [nuBusy,   setNuBusy]     = useState(false)
-  const [nuErr,    setNuErr]      = useState('')
-  const [nuOk,     setNuOk]       = useState('')
-  const [userList,    setUserList]    = useState([])
-  const [shownPasses, setShownPasses] = useState(new Set())
-  const [resetTarget,      setResetTarget]      = useState(null)
-  const [resetPass,        setResetPass]        = useState('')
-  const [resetCurrentPass, setResetCurrentPass] = useState('')
-  const [resetBusy,        setResetBusy]        = useState(false)
-  const [resetErr,         setResetErr]         = useState('')
-  const [resetOk,          setResetOk]          = useState('')
   const [lightbox, setLightbox] = useState(null)
   const [lbScale,  setLbScale]  = useState(1)
   const lbX      = useMotionValue(0)
@@ -1344,68 +1329,12 @@ function FishingEvidenceSection() {
 
   useEffect(()=>{
     const unsub = onSnapshot(collection(db,'sapr_users'), snap => {
-      const map = {}; const list = []
-      snap.docs.forEach(d=>{ const {email,displayName}=d.data(); if(email){ map[email]=displayName; list.push({email,displayName}) } })
-      setUserMap(map); setUserList(list)
+      const map = {}
+      snap.docs.forEach(d=>{ const {email,displayName}=d.data(); if(email) map[email]=displayName })
+      setUserMap(map)
     })
     return unsub
   },[])
-
-  // Load passwords from private collection — only works when signed in as management
-  const [secretsMap, setSecretsMap] = useState({}) // docId → password
-  useEffect(()=>{
-    if(!user || !MANAGEMENT_EMAIL.includes(user.email)) return
-    const unsub = onSnapshot(collection(db,'sapr_user_secrets'), snap => {
-      const m = {}
-      snap.docs.forEach(d=>{ m[d.id] = d.data().password })
-      setSecretsMap(m)
-    })
-    return unsub
-  },[user])
-
-  const handleResetPassword = async (email, storedPass) => {
-    const authPass = storedPass || resetCurrentPass.trim()
-    if(!resetPass.trim() || !authPass) return
-    setResetBusy(true); setResetErr(''); setResetOk('')
-    try {
-      await signInWithEmailAndPassword(secondaryAuth, email, authPass)
-      await updatePassword(secondaryAuth.currentUser, resetPass.trim())
-      await signOut(secondaryAuth)
-      await setDoc(doc(db,'sapr_user_secrets', email.replace(/[@.]/g,'_')), { password: resetPass.trim() }, { merge: true })
-      setResetOk('Password updated.')
-      setResetTarget(null); setResetPass(''); setResetCurrentPass('')
-    } catch(err) {
-      setResetErr(err.message||'Failed to reset.')
-    } finally { setResetBusy(false) }
-  }
-
-  const handleCreateUser = async e => {
-    e.preventDefault(); setNuErr(''); setNuOk('')
-    if(!nuEmail.trim()||!nuPass.trim()||!nuName.trim()) return
-    setNuBusy(true)
-    try {
-      // Try creating auth account — if already exists, just update the name record
-      try {
-        await createUserWithEmailAndPassword(secondaryAuth, nuEmail.trim(), nuPass.trim())
-        await signOut(secondaryAuth)
-      } catch(authErr) {
-        if(authErr.code==='auth/weak-password') { setNuErr('Password must be at least 6 characters.'); setNuBusy(false); return }
-        if(authErr.code!=='auth/email-already-in-use') { setNuErr(authErr.message||'Auth error.'); setNuBusy(false); return }
-        // email-already-in-use → still save/update Firestore record below
-      }
-      const docId = nuEmail.trim().replace(/[@.]/g,'_')
-      await setDoc(doc(db,'sapr_users', docId), {
-        email:       nuEmail.trim(),
-        displayName: nuName.trim(),
-        createdAt:   serverTimestamp(),
-      })
-      await setDoc(doc(db,'sapr_user_secrets', docId), { password: nuPass.trim() })
-      setNuOk(`Saved — ${nuName.trim()} (${nuEmail.trim()})`)
-      setNuEmail(''); setNuPass(''); setNuName('')
-    } catch(err) {
-      setNuErr(err.message||'Failed to save.')
-    } finally { setNuBusy(false) }
-  }
 
   const [dragOver, setDragOver] = useState(false)
 
@@ -1490,82 +1419,9 @@ function FishingEvidenceSection() {
             <div className="fe-admin-bar">
               <span className="fe-admin-tag">&#9679; {getDisplayName(user.email,userMap)} — {user.email}</span>
               <div className="fe-admin-actions">
-                {MANAGEMENT_EMAIL.includes(user.email) && (
-                  <button className="fe-admin-mgmt" onClick={()=>{setShowUserMgmt(v=>!v);setNuErr('');setNuOk('')}}>
-                    {showUserMgmt?'▲ Close':'👤 Manage Users'}
-                  </button>
-                )}
                 <button className="fe-admin-signout" onClick={()=>signOut(auth)}>Sign Out</button>
               </div>
             </div>
-
-            {/* Manage Users panel — management only */}
-            {showUserMgmt && MANAGEMENT_EMAIL.includes(user.email) && (
-              <div className="fe-mgmt-panel">
-                <h4 className="fe-mgmt-title">Create Officer Account</h4>
-                <form className="fe-mgmt-form" onSubmit={handleCreateUser} autoComplete="off">
-                  <input className="fe-input" placeholder="Display name (e.g. Sgt. Rex Davis)" value={nuName} onChange={e=>setNuName(e.target.value)} required autoComplete="off"/>
-                  <input className="fe-input" type="email" placeholder="Email address" value={nuEmail} onChange={e=>setNuEmail(e.target.value)} required autoComplete="off"/>
-                  <input className="fe-input" type="password" placeholder="Password (min 6 chars)" value={nuPass} onChange={e=>setNuPass(e.target.value)} required minLength={6} autoComplete="new-password"/>
-                  {nuErr && <p className="fe-err">&#9888; {nuErr}</p>}
-                  {nuOk  && <p className="fe-ok">&#10003; {nuOk}</p>}
-                  <button className="fe-add-btn" type="submit" disabled={nuBusy}>{nuBusy?'Creating…':'+ Create Account'}</button>
-                </form>
-                <h4 className="fe-mgmt-title" style={{marginTop:'1.25rem'}}>Registered Officers</h4>
-                <div className="fe-mgmt-list">
-                  {userList.map((u,i)=>{
-                    const docId = u.email.replace(/[@.]/g,'_')
-                    const storedPass = secretsMap[docId]
-                    return (
-                    <div key={i} className="fe-mgmt-row" style={{flexDirection:'column',alignItems:'stretch',gap:'.35rem'}}>
-                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                        <span className="fe-mgmt-name">{u.displayName}</span>
-                        <span className="fe-mgmt-email">{u.email}</span>
-                      </div>
-                      <div style={{display:'flex',alignItems:'center',gap:'.5rem',fontSize:'.82rem'}}>
-                        <span style={{color:'#aaa'}}>Pass:</span>
-                        <code style={{flex:1,letterSpacing:'1px',color:'#ccc'}}>
-                          {shownPasses.has(u.email) ? (storedPass||'—') : '••••••••'}
-                        </code>
-                        <button className="fe-mgmt-btn" onClick={()=>setShownPasses(s=>{const n=new Set(s);n.has(u.email)?n.delete(u.email):n.add(u.email);return n})}>
-                          {shownPasses.has(u.email)?'Hide':'Show'}
-                        </button>
-                        <button className="fe-mgmt-btn" onClick={()=>{setResetTarget(u.email);setResetPass('');setResetCurrentPass('');setResetErr('');setResetOk('')}}>
-                          Reset
-                        </button>
-                      </div>
-                      {resetTarget===u.email && (
-                        <>
-                          {!storedPass && (
-                            <input className="fe-input" type="password" placeholder="Current password (required)" value={resetCurrentPass}
-                              onChange={e=>setResetCurrentPass(e.target.value)} autoComplete="current-password"/>
-                          )}
-                          <div style={{display:'flex',gap:'.4rem'}}>
-                            <input className="fe-input" type="password" placeholder="New password (min 6)" value={resetPass}
-                              onChange={e=>setResetPass(e.target.value)} minLength={6} autoComplete="new-password" style={{flex:1}}/>
-                            <button className="fe-mgmt-btn fe-mgmt-btn--save"
-                              disabled={resetBusy||resetPass.length<6||(!storedPass&&!resetCurrentPass.trim())}
-                              onClick={()=>handleResetPassword(u.email, storedPass)}>
-                              {resetBusy?'…':'Save'}
-                            </button>
-                            <button className="fe-mgmt-btn" onClick={()=>setResetTarget(null)}>Cancel</button>
-                          </div>
-                          {resetErr && <p className="fe-err" style={{margin:0}}>&#9888; {resetErr}</p>}
-                          {resetOk  && <p className="fe-ok"  style={{margin:0}}>&#10003; {resetOk}</p>}
-                        </>
-                      )}
-                    </div>
-                  )})}
-
-                  {Object.entries(USER_NAMES_FALLBACK).filter(([em])=>!userList.some(u=>u.email===em)).map(([em,name],i)=>(
-                    <div key={'fb'+i} className="fe-mgmt-row">
-                      <span className="fe-mgmt-name">{name}</span>
-                      <span className="fe-mgmt-email">{em}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* Drop zone */}
             <div
@@ -1743,6 +1599,35 @@ function RecruitmentSection() {
   const [done,    setDone]    = useState(false)
   const [err,     setErr]     = useState('')
 
+  // Admin form-open/close control
+  const [adminUser,     setAdminUser]     = useState(null)
+  const [formOpen,      setFormOpen]      = useState(true)
+  const [configLoading, setConfigLoading] = useState(true)
+  const [toggling,      setToggling]      = useState(false)
+  const [toggleErr,     setToggleErr]     = useState('')
+
+  useEffect(()=>{
+    const unsub = onAuthStateChanged(auth, u => setAdminUser(u))
+    return unsub
+  },[])
+
+  useEffect(()=>{
+    const unsub = onSnapshot(doc(db,'sapr_config','recruitment'), snap => {
+      setFormOpen(snap.exists() ? snap.data().formOpen !== false : true)
+      setConfigLoading(false)
+    })
+    return unsub
+  },[])
+
+  const toggleFormOpen = async () => {
+    setToggling(true); setToggleErr('')
+    try { await setDoc(doc(db,'sapr_config','recruitment'), { formOpen: !formOpen }) }
+    catch(e) { setToggleErr(e.message||'Write failed — check Firestore rules for sapr_config.') }
+    finally { setToggling(false) }
+  }
+
+  const isAdmin = adminUser && MANAGEMENT_EMAIL.includes(adminUser.email)
+
   const handleSubmit = async e => {
     e.preventDefault(); setErr('')
     if(!name.trim()||!cid.trim()||!dept||!why.trim()||!discord.trim()) return
@@ -1771,12 +1656,38 @@ function RecruitmentSection() {
         <Reveal>
           <div className="sec-head">
             <span className="sec-num" style={{color:'var(--em)'}}>JOIN</span>
-            <p className="sec-tag">Open Enrollment</p>
+            <p className="sec-tag">{formOpen ? 'Open Enrollment' : 'Enrollment Closed'}</p>
             <SplitReveal text="San Andreas Park Rangers — Now Recruiting" className="sec-title" delay={.1} stagger={.024}/>
             <FadeWords text="Open to all Officers. Quality over quantity, we want people who mean it." className="sec-sub"/>
             <div className="sec-rule"/>
           </div>
         </Reveal>
+
+        {/* Admin toggle bar — only visible to management */}
+        {isAdmin && (
+          <Reveal delay={0}>
+            <div className="rec-admin-bar">
+              <div className="rec-admin-bar-left">
+                <span className="rec-admin-label">Admin</span>
+                <span style={{color:'var(--t2)',fontSize:'.85rem'}}>
+                  Recruitment form is currently&nbsp;
+                  <strong style={{color: formOpen ? 'var(--em)' : 'var(--red,#ef4444)'}}>
+                    {configLoading ? '…' : formOpen ? 'OPEN' : 'CLOSED'}
+                  </strong>
+                </span>
+              </div>
+              <div style={{display:'flex',flexDirection:'column',gap:'.3rem',alignItems:'flex-end'}}>
+                <button
+                  className={`app-btn${formOpen ? ' app-btn--del' : ' app-btn--review'}`}
+                  onClick={toggleFormOpen}
+                  disabled={toggling || configLoading}>
+                  {toggling ? 'Saving…' : formOpen ? 'Close Form' : 'Open Form'}
+                </button>
+                {toggleErr && <p className="fe-err" style={{margin:0,fontSize:'11px'}}>&#9888; {toggleErr}</p>}
+              </div>
+            </div>
+          </Reveal>
+        )}
 
         {/* Announcement banner */}
         <Reveal delay={.1}>
@@ -1807,10 +1718,16 @@ function RecruitmentSection() {
           </div>
         </Reveal>
 
-        {/* Application form */}
+        {/* Application form or closed notice */}
         <Reveal delay={.2}>
           <div className="rec-form-wrap">
-            {done ? (
+            {!configLoading && !formOpen && !isAdmin ? (
+              <div className="rec-closed">
+                <div className="rec-closed-icon">&#128274;</div>
+                <div className="rec-closed-title">Applications Closed</div>
+                <div className="rec-closed-sub">Recruitment is not currently open. Check back later or reach out to SAPR Management on Discord.</div>
+              </div>
+            ) : done ? (
               <div className="rec-success">
                 <div className="rec-success-icon">&#10003;</div>
                 <div className="rec-success-title">Form Received</div>
@@ -1818,6 +1735,9 @@ function RecruitmentSection() {
               </div>
             ) : (
               <>
+                {isAdmin && !formOpen && (
+                  <div className="rec-admin-notice">Form is closed to the public — visible to admins only.</div>
+                )}
                 <h3 className="rec-form-title">Expression of Interest — Fill it yourself, keep it real</h3>
                 <form className="rec-form" onSubmit={handleSubmit}>
                   <div className="rec-row">
@@ -1870,9 +1790,15 @@ function RecruitmentSection() {
 }
 
 /* ─── APPLICATIONS PANEL (management only) ──────────────── */
+const APP_PER_PAGE = 8
+
 function ApplicationsPanel({ user }) {
   const [apps,    setApps]    = useState([])
   const [filter,  setFilter]  = useState('all')
+  const [appPage, setAppPage] = useState(0)
+
+  // Reset to first page when filter changes
+  useEffect(()=>setAppPage(0),[filter])
 
   useEffect(()=>{
     if(!user || !MANAGEMENT_EMAIL.includes(user.email)) return
@@ -1892,8 +1818,9 @@ function ApplicationsPanel({ user }) {
   }
   const deleteApp = id => deleteDoc(doc(db,'sapr_applications',id))
 
-  const filtered = filter==='all' ? apps : apps.filter(a=>a.status===filter)
-  const counts   = { all:apps.length, pending:apps.filter(a=>a.status==='pending').length, reviewed:apps.filter(a=>a.status==='reviewed').length }
+  const filtered  = filter==='all' ? apps : apps.filter(a=>a.status===filter)
+  const counts    = { all:apps.length, pending:apps.filter(a=>a.status==='pending').length, reviewed:apps.filter(a=>a.status==='reviewed').length }
+  const pagedApps = filtered.slice(appPage*APP_PER_PAGE, (appPage+1)*APP_PER_PAGE)
 
   return (
     <section className="sec sec--dark" id="applications">
@@ -1923,39 +1850,42 @@ function ApplicationsPanel({ user }) {
         {filtered.length===0 ? (
           <div className="fe-empty">No applications yet.</div>
         ) : (
-          <div className="app-list">
-            {filtered.map((app,i)=>(
-              <Reveal key={app.id} delay={Math.min(i*.06,.4)}>
-                <div className={`app-card${app.status==='reviewed'?' app-card--reviewed':''}`}>
-                  <div className="app-card-head">
-                    <div className="app-head-left">
-                      <span className="app-name">{app.name}</span>
-                      <span className="app-cid">CID: {app.citizenId}</span>
+          <>
+            <div className="app-list">
+              {pagedApps.map((app,i)=>(
+                <Reveal key={app.id} delay={Math.min(i*.06,.4)}>
+                  <div className={`app-card${app.status==='reviewed'?' app-card--reviewed':''}`}>
+                    <div className="app-card-head">
+                      <div className="app-head-left">
+                        <span className="app-name">{app.name}</span>
+                        <span className="app-cid">CID: {app.citizenId}</span>
+                      </div>
+                      <div className="app-head-right">
+                        <span className={`app-status-badge${app.status==='reviewed'?' app-status-badge--ok':''}`}>
+                          {app.status==='reviewed'?'✓ Reviewed':'● Pending'}
+                        </span>
+                        <span className="app-dept">{app.department}{app.rank?` · ${app.rank}`:''}</span>
+                      </div>
                     </div>
-                    <div className="app-head-right">
-                      <span className={`app-status-badge${app.status==='reviewed'?' app-status-badge--ok':''}`}>
-                        {app.status==='reviewed'?'✓ Reviewed':'● Pending'}
-                      </span>
-                      <span className="app-dept">{app.department}{app.rank?` · ${app.rank}`:''}</span>
+                    <div className="app-why">{app.why}</div>
+                    <div className="app-footer">
+                      <div className="app-footer-meta">
+                        {app.availability && <span className="app-meta-item">&#128337; {app.availability}</span>}
+                        {app.discord      && <span className="app-meta-item">&#128172; {app.discord}</span>}
+                      </div>
+                      <div className="app-footer-actions">
+                        <button className="app-btn app-btn--review" onClick={()=>markReviewed(app.id)}>
+                          {app.status==='reviewed'?'Mark Pending':'Mark Reviewed'}
+                        </button>
+                        <button className="app-btn app-btn--del" onClick={()=>deleteApp(app.id)}>Delete</button>
+                      </div>
                     </div>
                   </div>
-                  <div className="app-why">{app.why}</div>
-                  <div className="app-footer">
-                    <div className="app-footer-meta">
-                      {app.availability && <span className="app-meta-item">&#128337; {app.availability}</span>}
-                      {app.discord      && <span className="app-meta-item">&#128172; {app.discord}</span>}
-                    </div>
-                    <div className="app-footer-actions">
-                      <button className="app-btn app-btn--review" onClick={()=>markReviewed(app.id)}>
-                        {app.status==='reviewed'?'Mark Pending':'Mark Reviewed'}
-                      </button>
-                      <button className="app-btn app-btn--del" onClick={()=>deleteApp(app.id)}>Delete</button>
-                    </div>
-                  </div>
-                </div>
-              </Reveal>
-            ))}
-          </div>
+                </Reveal>
+              ))}
+            </div>
+            <Paginator page={appPage} total={filtered.length} perPage={APP_PER_PAGE} onChange={setAppPage}/>
+          </>
         )}
       </div>
     </section>
@@ -2253,18 +2183,12 @@ function MDTSection() {
 }
 
 function FishingEvidencePage() {
-  const [pageUser, setPageUser] = useState(null)
-  useEffect(()=>{
-    const unsub = onAuthStateChanged(auth, u => setPageUser(u))
-    return unsub
-  },[])
   return (
     <div style={{minHeight:'100vh',background:'var(--bg)'}}>
       <Navbar/>
       <div style={{paddingTop:'56px'}}>
         <FishingEvidenceSection/>
         <MDTSection/>
-        <ApplicationsPanel user={pageUser}/>
         <OfficerLeaderboard/>
         <Footer/>
       </div>
@@ -2348,6 +2272,312 @@ function JoinSAPRPage() {
   )
 }
 
+/* ─── USER MANAGEMENT PANEL (admin only) ────────────────── */
+function UserManagementPanel({ user }) {
+  const [userList,         setUserList]         = useState([])
+  const [secretsMap,       setSecretsMap]       = useState({})
+  const [shownPasses,      setShownPasses]      = useState(new Set())
+  const [nuEmail,          setNuEmail]          = useState('')
+  const [nuPass,           setNuPass]           = useState('')
+  const [nuName,           setNuName]           = useState('')
+  const [nuBusy,           setNuBusy]           = useState(false)
+  const [nuErr,            setNuErr]            = useState('')
+  const [nuOk,             setNuOk]             = useState('')
+  const [resetTarget,      setResetTarget]      = useState(null)
+  const [resetPass,        setResetPass]        = useState('')
+  const [resetCurrentPass, setResetCurrentPass] = useState('')
+  const [resetBusy,        setResetBusy]        = useState(false)
+  const [resetErr,         setResetErr]         = useState('')
+  const [resetOk,          setResetOk]          = useState('')
+
+  useEffect(()=>{
+    const unsub = onSnapshot(collection(db,'sapr_users'), snap => {
+      const list = []
+      snap.docs.forEach(d=>{ const {email,displayName}=d.data(); if(email) list.push({email,displayName}) })
+      setUserList(list)
+    })
+    return unsub
+  },[])
+
+  useEffect(()=>{
+    if(!user || !MANAGEMENT_EMAIL.includes(user.email)) return
+    const unsub = onSnapshot(collection(db,'sapr_user_secrets'), snap => {
+      const m = {}
+      snap.docs.forEach(d=>{ m[d.id] = d.data().password })
+      setSecretsMap(m)
+    })
+    return unsub
+  },[user])
+
+  if(!user || !MANAGEMENT_EMAIL.includes(user.email)) return null
+
+  const handleCreateUser = async e => {
+    e.preventDefault(); setNuErr(''); setNuOk('')
+    if(!nuEmail.trim()||!nuPass.trim()||!nuName.trim()) return
+    setNuBusy(true)
+    try {
+      try {
+        await createUserWithEmailAndPassword(secondaryAuth, nuEmail.trim(), nuPass.trim())
+        await signOut(secondaryAuth)
+      } catch(authErr) {
+        if(authErr.code==='auth/weak-password') { setNuErr('Password must be at least 6 characters.'); setNuBusy(false); return }
+        if(authErr.code!=='auth/email-already-in-use') { setNuErr(authErr.message||'Auth error.'); setNuBusy(false); return }
+      }
+      const docId = nuEmail.trim().replace(/[@.]/g,'_')
+      await setDoc(doc(db,'sapr_users', docId), {
+        email:       nuEmail.trim(),
+        displayName: nuName.trim(),
+        createdAt:   serverTimestamp(),
+      })
+      await setDoc(doc(db,'sapr_user_secrets', docId), { password: nuPass.trim() })
+      setNuOk(`Saved — ${nuName.trim()} (${nuEmail.trim()})`)
+      setNuEmail(''); setNuPass(''); setNuName('')
+    } catch(err) {
+      setNuErr(err.message||'Failed to save.')
+    } finally { setNuBusy(false) }
+  }
+
+  const handleResetPassword = async (email, storedPass) => {
+    const authPass = storedPass || resetCurrentPass.trim()
+    if(!resetPass.trim() || !authPass) return
+    setResetBusy(true); setResetErr(''); setResetOk('')
+    try {
+      await signInWithEmailAndPassword(secondaryAuth, email, authPass)
+      await updatePassword(secondaryAuth.currentUser, resetPass.trim())
+      await signOut(secondaryAuth)
+      await setDoc(doc(db,'sapr_user_secrets', email.replace(/[@.]/g,'_')), { password: resetPass.trim() }, { merge: true })
+      setResetOk('Password updated.')
+      setResetTarget(null); setResetPass(''); setResetCurrentPass('')
+    } catch(err) {
+      setResetErr(err.message||'Failed to reset.')
+    } finally { setResetBusy(false) }
+  }
+
+  return (
+    <section className="sec sec--dark" id="user-management">
+      <div className="sec-inner">
+        <Reveal>
+          <div className="sec-head">
+            <span className="sec-num" style={{color:'var(--em)'}}>USERS</span>
+            <p className="sec-tag">Management Only</p>
+            <SplitReveal text="Officer Accounts" className="sec-title" delay={.1} stagger={.028}/>
+            <div className="sec-rule"/>
+          </div>
+        </Reveal>
+
+        <Reveal delay={.1}>
+          <div className="fe-mgmt-panel">
+            <h4 className="fe-mgmt-title">Create Officer Account</h4>
+            <form className="fe-mgmt-form" onSubmit={handleCreateUser} autoComplete="off">
+              <input className="fe-input" placeholder="Display name (e.g. Sgt. Rex Davis)" value={nuName} onChange={e=>setNuName(e.target.value)} required autoComplete="off"/>
+              <input className="fe-input" type="email" placeholder="Email address" value={nuEmail} onChange={e=>setNuEmail(e.target.value)} required autoComplete="off"/>
+              <input className="fe-input" type="password" placeholder="Password (min 6 chars)" value={nuPass} onChange={e=>setNuPass(e.target.value)} required minLength={6} autoComplete="new-password"/>
+              {nuErr && <p className="fe-err">&#9888; {nuErr}</p>}
+              {nuOk  && <p className="fe-ok">&#10003; {nuOk}</p>}
+              <button className="fe-add-btn" type="submit" disabled={nuBusy}>{nuBusy?'Creating…':'+ Create Account'}</button>
+            </form>
+            <h4 className="fe-mgmt-title" style={{marginTop:'1.25rem'}}>Registered Officers</h4>
+            <div className="fe-mgmt-list">
+              {userList.map((u,i)=>{
+                const docId = u.email.replace(/[@.]/g,'_')
+                const storedPass = secretsMap[docId]
+                return (
+                <div key={i} className="fe-mgmt-row" style={{flexDirection:'column',alignItems:'stretch',gap:'.35rem'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                    <span className="fe-mgmt-name">{u.displayName}</span>
+                    <span className="fe-mgmt-email">{u.email}</span>
+                  </div>
+                  <div style={{display:'flex',alignItems:'center',gap:'.5rem',fontSize:'.82rem'}}>
+                    <span style={{color:'#aaa'}}>Pass:</span>
+                    <code style={{flex:1,letterSpacing:'1px',color:'#ccc'}}>
+                      {shownPasses.has(u.email) ? (storedPass||'—') : '••••••••'}
+                    </code>
+                    <button className="fe-mgmt-btn" onClick={()=>setShownPasses(s=>{const n=new Set(s);n.has(u.email)?n.delete(u.email):n.add(u.email);return n})}>
+                      {shownPasses.has(u.email)?'Hide':'Show'}
+                    </button>
+                    <button className="fe-mgmt-btn" onClick={()=>{setResetTarget(u.email);setResetPass('');setResetCurrentPass('');setResetErr('');setResetOk('')}}>
+                      Reset
+                    </button>
+                  </div>
+                  {resetTarget===u.email && (
+                    <>
+                      {!storedPass && (
+                        <input className="fe-input" type="password" placeholder="Current password (required)" value={resetCurrentPass}
+                          onChange={e=>setResetCurrentPass(e.target.value)} autoComplete="current-password"/>
+                      )}
+                      <div style={{display:'flex',gap:'.4rem'}}>
+                        <input className="fe-input" type="password" placeholder="New password (min 6)" value={resetPass}
+                          onChange={e=>setResetPass(e.target.value)} minLength={6} autoComplete="new-password" style={{flex:1}}/>
+                        <button className="fe-mgmt-btn fe-mgmt-btn--save"
+                          disabled={resetBusy||resetPass.length<6||(!storedPass&&!resetCurrentPass.trim())}
+                          onClick={()=>handleResetPassword(u.email, storedPass)}>
+                          {resetBusy?'…':'Save'}
+                        </button>
+                        <button className="fe-mgmt-btn" onClick={()=>setResetTarget(null)}>Cancel</button>
+                      </div>
+                      {resetErr && <p className="fe-err" style={{margin:0}}>&#9888; {resetErr}</p>}
+                      {resetOk  && <p className="fe-ok"  style={{margin:0}}>&#10003; {resetOk}</p>}
+                    </>
+                  )}
+                </div>
+              )})}
+              {Object.entries(USER_NAMES_FALLBACK).filter(([em])=>!userList.some(u=>u.email===em)).map(([em,name],i)=>(
+                <div key={'fb'+i} className="fe-mgmt-row">
+                  <span className="fe-mgmt-name">{name}</span>
+                  <span className="fe-mgmt-email">{em}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  )
+}
+
+/* ─── ADMIN PAGE ─────────────────────────────────────────── */
+function AdminPage() {
+  const [user,         setUser]         = useState(null)
+  const [authLoaded,   setAuthLoaded]   = useState(false)
+  const [email,        setEmail]        = useState('')
+  const [pass,         setPass]         = useState('')
+  const [loginErr,     setLoginErr]     = useState('')
+  const [formOpen,     setFormOpen]     = useState(true)
+  const [configLoading,setConfigLoading]= useState(true)
+  const [toggling,     setToggling]     = useState(false)
+  const [toggleErr,    setToggleErr]    = useState('')
+
+  useEffect(()=>{
+    const unsub = onAuthStateChanged(auth, u => { setUser(u); setAuthLoaded(true) })
+    return unsub
+  },[])
+
+  useEffect(()=>{
+    const unsub = onSnapshot(doc(db,'sapr_config','recruitment'), snap => {
+      setFormOpen(snap.exists() ? snap.data().formOpen !== false : true)
+      setConfigLoading(false)
+    })
+    return unsub
+  },[])
+
+  const handleLogin = async e => {
+    e.preventDefault(); setLoginErr('')
+    try {
+      await signInWithEmailAndPassword(auth, email, pass)
+      setEmail(''); setPass('')
+    } catch { setLoginErr('Invalid email or password.') }
+  }
+
+  const toggleFormOpen = async () => {
+    setToggling(true); setToggleErr('')
+    try { await setDoc(doc(db,'sapr_config','recruitment'), { formOpen: !formOpen }) }
+    catch(e) { setToggleErr(e.message||'Write failed — check Firestore rules for sapr_config.') }
+    finally { setToggling(false) }
+  }
+
+  if (!authLoaded) return (
+    <div style={{minHeight:'100vh',background:'var(--bg)'}}>
+      <Navbar/>
+      <div style={{paddingTop:'56px',display:'flex',alignItems:'center',justifyContent:'center',minHeight:'80vh'}}>
+        <span style={{color:'var(--t3)'}}>Loading…</span>
+      </div>
+    </div>
+  )
+
+  if (!user) return (
+    <div style={{minHeight:'100vh',background:'var(--bg)'}}>
+      <Navbar/>
+      <div style={{paddingTop:'56px',display:'flex',alignItems:'center',justifyContent:'center',minHeight:'80vh'}}>
+        <motion.div className="admin-login-card"
+          initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{duration:.3,ease:'easeOut'}}>
+          <div className="admin-login-eyebrow">Management Access</div>
+          <h2 className="admin-login-title">SAPR Admin</h2>
+          <form onSubmit={handleLogin} style={{display:'flex',flexDirection:'column',gap:'.75rem',marginTop:'1.5rem'}}>
+            <input className="fe-input" type="email" placeholder="Email" value={email}
+              onChange={e=>setEmail(e.target.value)} required autoFocus/>
+            <input className="fe-input" type="password" placeholder="Password" value={pass}
+              onChange={e=>setPass(e.target.value)} required/>
+            {loginErr && <p className="fe-err">&#9888; {loginErr}</p>}
+            <button className="fe-add-btn" type="submit">Sign In →</button>
+          </form>
+        </motion.div>
+      </div>
+    </div>
+  )
+
+  if (!MANAGEMENT_EMAIL.includes(user.email)) return (
+    <div style={{minHeight:'100vh',background:'var(--bg)'}}>
+      <Navbar/>
+      <div style={{paddingTop:'56px',display:'flex',alignItems:'center',justifyContent:'center',minHeight:'80vh'}}>
+        <div style={{textAlign:'center'}}>
+          <div style={{color:'var(--red,#ef4444)',fontSize:'1.75rem',fontWeight:700,marginBottom:'.75rem'}}>Access Denied</div>
+          <div style={{color:'var(--t3)',marginBottom:'1.5rem'}}>This page is restricted to SAPR Management.</div>
+          <button className="app-btn app-btn--del" onClick={()=>signOut(auth)}>Sign Out</button>
+        </div>
+      </div>
+    </div>
+  )
+
+  return (
+    <div style={{minHeight:'100vh',background:'var(--bg)'}}>
+      <Navbar/>
+      <div style={{paddingTop:'56px'}}>
+
+        {/* Admin header */}
+        <section className="sec" style={{paddingBottom:'2rem'}}>
+          <div className="sec-inner">
+            <Reveal>
+              <div className="sec-head">
+                <span className="sec-num" style={{color:'var(--em)'}}>ADMIN</span>
+                <p className="sec-tag">Management Dashboard</p>
+                <SplitReveal text="SAPR Admin Panel" className="sec-title" delay={.1} stagger={.03}/>
+                <div className="sec-rule"/>
+              </div>
+            </Reveal>
+
+            {/* Recruitment form status card */}
+            <Reveal delay={.1}>
+              <div className="admin-control-card">
+                <div className="admin-control-left">
+                  <div className="admin-control-title">Recruitment Form</div>
+                  <div className="admin-control-sub">Controls whether /joinsapr shows the application form to the public.</div>
+                  <div className="admin-control-status">
+                    Status:&nbsp;
+                    <span style={{color: formOpen ? 'var(--em)' : 'var(--red,#ef4444)', fontWeight:700}}>
+                      {configLoading ? '…' : formOpen ? 'OPEN' : 'CLOSED'}
+                    </span>
+                  </div>
+                </div>
+                <div style={{display:'flex',flexDirection:'column',gap:'.4rem',alignSelf:'center'}}>
+                  <button
+                    className={`fe-add-btn${formOpen ? ' admin-btn--danger' : ''}`}
+                    style={{minWidth:'160px'}}
+                    onClick={toggleFormOpen}
+                    disabled={toggling || configLoading}>
+                    {toggling ? 'Saving…' : formOpen ? 'Close Form' : 'Open Form'}
+                  </button>
+                  {toggleErr && <p className="fe-err" style={{margin:0,fontSize:'11px'}}>&#9888; {toggleErr}</p>}
+                </div>
+              </div>
+            </Reveal>
+
+            {/* Sign out */}
+            <Reveal delay={.15}>
+              <div style={{textAlign:'right',marginTop:'1rem'}}>
+                <button className="app-btn app-btn--del" onClick={()=>signOut(auth)}>Sign Out</button>
+              </div>
+            </Reveal>
+          </div>
+        </section>
+
+        <UserManagementPanel user={user}/>
+        <ApplicationsPanel user={user}/>
+        <Footer/>
+      </div>
+    </div>
+  )
+}
+
 /* ─── APP ───────────────────────────────────────────────── */
 export default function App() {
   return (
@@ -2356,6 +2586,7 @@ export default function App() {
       <Route path="/fieldwork" element={<FishingEvidencePage/>}/>
       <Route path="/joinsapr" element={<JoinSAPRPage/>}/>
       <Route path="/proposal" element={<ProposalPage/>}/>
+      <Route path="/admin" element={<AdminPage/>}/>
     </Routes>
   )
 }
