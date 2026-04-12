@@ -1732,8 +1732,63 @@
   padding: 1.1rem 1.25rem;
   transition: border-color 0.2s;
 }
-.app-card:hover         { border-color: rgba(16,185,129,0.25); }
+.app-card--clickable    { cursor: pointer; }
+.app-card--clickable:hover { border-color: rgba(16,185,129,0.35); background: var(--s2); }
 .app-card--reviewed     { opacity: 0.65; }
+
+/* Application detail modal */
+.app-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.65);
+  backdrop-filter: blur(4px);
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+.app-modal-box {
+  background: var(--s);
+  border: 1px solid var(--ln);
+  border-radius: 14px;
+  width: 100%;
+  max-width: 540px;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.app-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.4rem 1.5rem 1rem;
+  border-bottom: 1px solid var(--ln);
+}
+.app-modal-name { font: 700 18px/1 var(--ui); color: var(--t1); }
+.app-modal-sub  { font: 400 12px/1 var(--mono); color: var(--t3); margin-top: .35rem; }
+.app-modal-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0 1.5rem;
+}
+.app-modal-field {
+  padding: .9rem 0;
+  border-bottom: 1px solid var(--ln);
+}
+.app-modal-field:last-child { border-bottom: none; }
+.app-modal-q { font: 600 11px/1 var(--mono); letter-spacing:.05em; color: var(--t3); text-transform: uppercase; margin-bottom: .4rem; }
+.app-modal-a { font: 400 14px/1.5 var(--ui); color: var(--t1); }
+.app-modal-actions {
+  display: flex;
+  gap: .5rem;
+  justify-content: flex-end;
+  padding: 1rem 1.5rem 1.4rem;
+  border-top: 1px solid var(--ln);
+}
 .app-card-head {
   display: flex;
   justify-content: space-between;

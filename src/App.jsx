@@ -354,8 +354,24 @@ function Paginator({ page, total, perPage, onChange }) {
 function Navbar() {
   const [sc,  setSc]  = useState(false)
   const [open,setOpen]= useState(false)
-  const loc = useLocation()
-  const onHome = loc.pathname==='/'
+  const loc     = useLocation()
+  const navigate = useNavigate()
+  const onHome   = loc.pathname==='/'
+  const brandClickCount = useRef(0)
+  const brandClickTimer = useRef(null)
+
+  const handleBrandClick = () => {
+    brandClickCount.current += 1
+    clearTimeout(brandClickTimer.current)
+    if(brandClickCount.current >= 5) {
+      brandClickCount.current = 0
+      navigate('/admin')
+      return
+    }
+    brandClickTimer.current = setTimeout(() => { brandClickCount.current = 0 }, 2000)
+    if(onHome) scrollTo('hero')
+    else navigate('/')
+  }
 
   useEffect(()=>{
     const h=()=>setSc(window.scrollY>50)
@@ -399,29 +415,17 @@ function Navbar() {
     <motion.nav className={`nav ${sc?'scrolled':''} ${open?'nav--open':''}`}
       initial={{y:-60}} animate={{y:0}} transition={{duration:.6,ease:'easeOut'}}>
 
-      {/* Brand */}
-      {onHome
-        ? <button className="nav-brand" onClick={()=>scrollTo('hero')}>
-            <div className="nav-logos">
-              <div className="nav-logo" style={{backgroundImage:`url(${logoRanger})`}}/>
-              <div className="nav-logo" style={{backgroundImage:`url(${logoState})`}}/>
-            </div>
-            <div className="nav-wordmark">
-              <span className="nav-title">SAPR</span>
-              <span className="nav-sub">San Andreas Park Rangers</span>
-            </div>
-          </button>
-        : <Link to="/" className="nav-brand">
-            <div className="nav-logos">
-              <div className="nav-logo" style={{backgroundImage:`url(${logoRanger})`}}/>
-              <div className="nav-logo" style={{backgroundImage:`url(${logoState})`}}/>
-            </div>
-            <div className="nav-wordmark">
-              <span className="nav-title">SAPR</span>
-              <span className="nav-sub">San Andreas Park Rangers</span>
-            </div>
-          </Link>
-      }
+      {/* Brand — secret: click 5× to reach /admin */}
+      <button className="nav-brand" onClick={handleBrandClick}>
+        <div className="nav-logos">
+          <div className="nav-logo" style={{backgroundImage:`url(${logoRanger})`}}/>
+          <div className="nav-logo" style={{backgroundImage:`url(${logoState})`}}/>
+        </div>
+        <div className="nav-wordmark">
+          <span className="nav-title">SAPR</span>
+          <span className="nav-sub">San Andreas Park Rangers</span>
+        </div>
+      </button>
 
       {/* Desktop links */}
       <ul className="nav-links">
@@ -1247,25 +1251,10 @@ function FinalAskSection() {
 
 /* ─── FOOTER ────────────────────────────────────────────── */
 function Footer() {
-  const navigate = useNavigate()
-  const clickCount = useRef(0)
-  const clickTimer = useRef(null)
-
-  const handleLogoClick = () => {
-    clickCount.current += 1
-    clearTimeout(clickTimer.current)
-    if(clickCount.current >= 5) {
-      clickCount.current = 0
-      navigate('/admin')
-      return
-    }
-    clickTimer.current = setTimeout(() => { clickCount.current = 0 }, 2000)
-  }
-
   return (
     <footer className="footer">
       <Reveal>
-        <div className="footer-logos" onClick={handleLogoClick} style={{cursor:'default'}}>
+        <div className="footer-logos">
           <div className="footer-logo-img" style={{backgroundImage:`url(${logoRanger})`}}/>
           <div className="footer-logo-img" style={{backgroundImage:`url(${logoState})`}}/>
         </div>
@@ -1815,9 +1804,10 @@ function RecruitmentSection() {
 const APP_PER_PAGE = 8
 
 function ApplicationsPanel({ user }) {
-  const [apps,    setApps]    = useState([])
-  const [filter,  setFilter]  = useState('all')
-  const [appPage, setAppPage] = useState(0)
+  const [apps,        setApps]        = useState([])
+  const [filter,      setFilter]      = useState('all')
+  const [appPage,     setAppPage]     = useState(0)
+  const [selectedApp, setSelectedApp] = useState(null)
 
   // Reset to first page when filter changes
   useEffect(()=>setAppPage(0),[filter])
@@ -1876,7 +1866,8 @@ function ApplicationsPanel({ user }) {
             <div className="app-list">
               {pagedApps.map((app,i)=>(
                 <Reveal key={app.id} delay={Math.min(i*.06,.4)}>
-                  <div className={`app-card${app.status==='reviewed'?' app-card--reviewed':''}`}>
+                  <div className={`app-card app-card--clickable${app.status==='reviewed'?' app-card--reviewed':''}`}
+                    onClick={()=>setSelectedApp(app)}>
                     <div className="app-card-head">
                       <div className="app-head-left">
                         <span className="app-name">{app.name}</span>
@@ -1895,7 +1886,7 @@ function ApplicationsPanel({ user }) {
                         {app.availability && <span className="app-meta-item">&#128337; {app.availability}</span>}
                         {app.discord      && <span className="app-meta-item">&#128172; {app.discord}</span>}
                       </div>
-                      <div className="app-footer-actions">
+                      <div className="app-footer-actions" onClick={e=>e.stopPropagation()}>
                         <button className="app-btn app-btn--review" onClick={()=>markReviewed(app.id)}>
                           {app.status==='reviewed'?'Mark Pending':'Mark Reviewed'}
                         </button>
@@ -1908,6 +1899,48 @@ function ApplicationsPanel({ user }) {
             </div>
             <Paginator page={appPage} total={filtered.length} perPage={APP_PER_PAGE} onChange={setAppPage}/>
           </>
+        )}
+
+        {/* Application detail modal */}
+        {selectedApp && (
+          <div className="app-modal-overlay" onClick={()=>setSelectedApp(null)}>
+            <motion.div className="app-modal-box" onClick={e=>e.stopPropagation()}
+              initial={{opacity:0,scale:.94,y:16}} animate={{opacity:1,scale:1,y:0}}
+              transition={{duration:.22,ease:'easeOut'}}>
+              <div className="app-modal-head">
+                <div>
+                  <div className="app-modal-name">{selectedApp.name}</div>
+                  <div className="app-modal-sub">CID: {selectedApp.citizenId}</div>
+                </div>
+                <div style={{display:'flex',alignItems:'center',gap:'.75rem'}}>
+                  <span className={`app-status-badge${selectedApp.status==='reviewed'?' app-status-badge--ok':''}`}>
+                    {selectedApp.status==='reviewed'?'✓ Reviewed':'● Pending'}
+                  </span>
+                  <button className="fe-modal-close" onClick={()=>setSelectedApp(null)}>&#10005;</button>
+                </div>
+              </div>
+              <div className="app-modal-fields">
+                {[
+                  {q:'Current Department', a: selectedApp.department},
+                  {q:'Current Rank / Callsign', a: selectedApp.rank||'—'},
+                  {q:'Availability', a: selectedApp.availability||'—'},
+                  {q:'Discord Tag', a: selectedApp.discord||'—'},
+                  {q:'Why do you want to join SAPR?', a: selectedApp.why},
+                ].map(({q,a})=>(
+                  <div key={q} className="app-modal-field">
+                    <div className="app-modal-q">{q}</div>
+                    <div className="app-modal-a">{a}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="app-modal-actions" onClick={e=>e.stopPropagation()}>
+                <button className="app-btn app-btn--review" onClick={()=>markReviewed(selectedApp.id)}>
+                  {selectedApp.status==='reviewed'?'Mark Pending':'Mark Reviewed'}
+                </button>
+                <button className="app-btn app-btn--del" onClick={()=>{ deleteApp(selectedApp.id); setSelectedApp(null) }}>Delete</button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </div>
     </section>
