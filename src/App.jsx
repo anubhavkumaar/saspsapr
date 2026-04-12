@@ -381,10 +381,12 @@ function Navbar() {
         {l:'Proposal',  to:'/proposal'},
       ]
 
-  const homeLink       = routeLinks.find(l=>l.to==='/')
   const otherRouteLinks= routeLinks.filter(l=>l.to!=='/')
   const allLinks = [
-    ...(homeLink ? [{ type:'route', ...homeLink }] : []),
+    // On home page, Home scrolls to #hero instead of re-navigating to /
+    onHome
+      ? { type:'anchor', l:'Home', href:'#hero' }
+      : { type:'route',  l:'Home', to:'/' },
     ...anchorLinks.map(l=>({ type:'anchor', ...l })),
     ...otherRouteLinks.map(l=>({ type:'route', ...l })),
   ]
