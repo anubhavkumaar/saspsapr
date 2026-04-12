@@ -398,13 +398,11 @@ function Navbar() {
       ]
 
   const otherRouteLinks= routeLinks.filter(l=>l.to!=='/')
-  const allLinks = [
-    onHome
-      ? { type:'scroll', l:'Home', id:'hero' }
-      : { type:'route',  l:'Home', to:'/' },
+  const scrollLinks = [
+    onHome ? { type:'scroll', l:'Home', id:'hero' } : { type:'route', l:'Home', to:'/' },
     ...anchorLinks.map(l=>({ type:'scroll', l:l.l, id:l.href.replace('#','') })),
-    ...otherRouteLinks.map(l=>({ type:'route', ...l })),
   ]
+  const pageLinks = otherRouteLinks.map(l=>({ type:'route', ...l }))
 
   const scrollTo = (id) => {
     document.getElementById(id)?.scrollIntoView({ behavior:'smooth' })
@@ -429,12 +427,18 @@ function Navbar() {
 
       {/* Desktop links */}
       <ul className="nav-links">
-        {allLinks.map((l,i)=>(
+        {scrollLinks.map((l,i)=>(
           <motion.li key={l.id||l.to} initial={{opacity:0}} animate={{opacity:1}} transition={{delay:.15+i*.05}}>
             {l.type==='scroll'
               ? <button className="nav-link" onClick={()=>scrollTo(l.id)}>{l.l}</button>
               : <Link className={`nav-link${loc.pathname===l.to?' nav-link--active':''}`} to={l.to}>{l.l}</Link>
             }
+          </motion.li>
+        ))}
+        {pageLinks.length > 0 && <li className="nav-divider" aria-hidden="true"/>}
+        {pageLinks.map((l,i)=>(
+          <motion.li key={l.to} initial={{opacity:0}} animate={{opacity:1}} transition={{delay:.15+(scrollLinks.length+1+i)*.05}}>
+            <Link className={`nav-link nav-link--page${loc.pathname===l.to?' nav-link--active':''}`} to={l.to}>{l.l}</Link>
           </motion.li>
         ))}
       </ul>
@@ -450,12 +454,18 @@ function Navbar() {
       {open && (
         <div className="nav-drawer" onClick={()=>setOpen(false)}>
           <div className="nav-drawer-inner" onClick={e=>e.stopPropagation()}>
-            {allLinks.map((l,i)=>(
+            {scrollLinks.map((l)=>(
               <div key={l.id||l.to} className="nav-drawer-item">
                 {l.type==='scroll'
                   ? <button className="nav-drawer-link" onClick={()=>scrollTo(l.id)}>{l.l}</button>
                   : <Link className={`nav-drawer-link${loc.pathname===l.to?' nav-drawer-link--active':''}`} to={l.to}>{l.l}</Link>
                 }
+              </div>
+            ))}
+            {pageLinks.length > 0 && <div className="nav-drawer-sep"><span>Pages</span></div>}
+            {pageLinks.map((l)=>(
+              <div key={l.to} className="nav-drawer-item">
+                <Link className={`nav-drawer-link${loc.pathname===l.to?' nav-drawer-link--active':''}`} to={l.to}>{l.l}</Link>
               </div>
             ))}
           </div>
@@ -1651,7 +1661,7 @@ function RecruitmentSection() {
         availability: avail.trim(),
         why:       why.trim(),
         discord:   discord.trim(),
-        status:    'pending',
+        tags:      ['pending'],
         submittedAt: serverTimestamp(),
       })
       setDone(true)
@@ -1803,35 +1813,64 @@ function RecruitmentSection() {
 /* ─── APPLICATIONS PANEL (management only) ──────────────── */
 const APP_PER_PAGE = 8
 
+const APP_TAGS = [
+  { id:'pending',     label:'Pending',     color:'#f59e0b', bg:'rgba(245,158,11,.13)' },
+  { id:'on_hold',     label:'On Hold',     color:'#a78bfa', bg:'rgba(167,139,250,.13)' },
+  { id:'shortlisted', label:'Shortlisted', color:'#38bdf8', bg:'rgba(56,189,248,.13)'  },
+  { id:'reviewed',    label:'Reviewed',    color:'#10b981', bg:'rgba(16,185,129,.13)'  },
+  { id:'rejected',    label:'Rejected',    color:'#f87171', bg:'rgba(248,113,113,.13)' },
+]
+
+const getTags = app => app.tags?.length ? app.tags : [app.status || 'pending']
+
+function AppTagChip({ tagId, removable, onRemove }) {
+  const t = APP_TAGS.find(t=>t.id===tagId)
+  if(!t) return null
+  return (
+    <span className="app-tag-chip" style={{color:t.color,background:t.bg,borderColor:t.color+'44'}}>
+      {t.label}
+      {removable && <button className="app-tag-remove" onClick={e=>{e.stopPropagation();onRemove(tagId)}}>&#10005;</button>}
+    </span>
+  )
+}
+
 function ApplicationsPanel({ user }) {
   const [apps,        setApps]        = useState([])
   const [filter,      setFilter]      = useState('all')
   const [appPage,     setAppPage]     = useState(0)
   const [selectedApp, setSelectedApp] = useState(null)
 
-  // Reset to first page when filter changes
   useEffect(()=>setAppPage(0),[filter])
 
   useEffect(()=>{
     if(!user || !MANAGEMENT_EMAIL.includes(user.email)) return
     const q = query(collection(db,'sapr_applications'), orderBy('submittedAt','desc'))
-    const unsub = onSnapshot(q, snap =>
-      setApps(snap.docs.map(d=>({ id:d.id, ...d.data() })))
-    )
+    const unsub = onSnapshot(q, snap => {
+      const list = snap.docs.map(d=>({ id:d.id, ...d.data() }))
+      setApps(list)
+      // Keep modal in sync with live data
+      setSelectedApp(prev => prev ? (list.find(a=>a.id===prev.id) || null) : null)
+    })
     return unsub
   },[user])
 
   if(!user || !MANAGEMENT_EMAIL.includes(user.email)) return null
 
-  const markReviewed = async id => {
-    const ref = doc(db,'sapr_applications',id)
-    const cur = apps.find(a=>a.id===id)
-    await setDoc(ref, { ...cur, status: cur.status==='reviewed'?'pending':'reviewed' })
+  const toggleTag = async (appId, tagId) => {
+    const app = apps.find(a=>a.id===appId)
+    const current = getTags(app)
+    const next = current.includes(tagId) ? current.filter(t=>t!==tagId) : [...current, tagId]
+    if(next.length === 0) return
+    await setDoc(doc(db,'sapr_applications',appId), { tags: next }, { merge: true })
   }
-  const deleteApp = id => deleteDoc(doc(db,'sapr_applications',id))
 
-  const filtered  = filter==='all' ? apps : apps.filter(a=>a.status===filter)
-  const counts    = { all:apps.length, pending:apps.filter(a=>a.status==='pending').length, reviewed:apps.filter(a=>a.status==='reviewed').length }
+  const deleteApp = async id => {
+    await deleteDoc(doc(db,'sapr_applications',id))
+    setSelectedApp(null)
+  }
+
+  const filtered  = filter==='all' ? apps : apps.filter(a=>getTags(a).includes(filter))
+  const counts    = Object.fromEntries([['all',apps.length],...APP_TAGS.map(t=>[t.id, apps.filter(a=>getTags(a).includes(t.id)).length])])
   const pagedApps = filtered.slice(appPage*APP_PER_PAGE, (appPage+1)*APP_PER_PAGE)
 
   return (
@@ -1846,102 +1885,126 @@ function ApplicationsPanel({ user }) {
           </div>
         </Reveal>
 
-        {/* Status filter */}
+        {/* Tag filter bar */}
         <Reveal delay={.1}>
-          <div className="fe-filter-bar" style={{marginBottom:'1.5rem'}}>
-            {['all','pending','reviewed'].map(s=>(
-              <button key={s} className={`app-filter-btn${filter===s?' app-filter-btn--active':''}`}
-                onClick={()=>setFilter(s)}>
-                {s==='all'?'All':s==='pending'?'Pending':'Reviewed'}
-                <span className="app-filter-count">{counts[s]}</span>
+          <div className="fe-filter-bar" style={{marginBottom:'1.5rem',flexWrap:'wrap'}}>
+            <button className={`app-filter-btn${filter==='all'?' app-filter-btn--active':''}`} onClick={()=>setFilter('all')}>
+              All <span className="app-filter-count">{counts.all}</span>
+            </button>
+            {APP_TAGS.map(t=>(
+              <button key={t.id}
+                className={`app-filter-btn${filter===t.id?' app-filter-btn--active':''}`}
+                style={filter===t.id?{color:t.color,borderColor:t.color,background:t.bg}:{}}
+                onClick={()=>setFilter(t.id)}>
+                {t.label}
+                {counts[t.id]>0 && <span className="app-filter-count">{counts[t.id]}</span>}
               </button>
             ))}
           </div>
         </Reveal>
 
         {filtered.length===0 ? (
-          <div className="fe-empty">No applications yet.</div>
+          <div className="fe-empty">No applications{filter!=='all'?` tagged "${APP_TAGS.find(t=>t.id===filter)?.label}"`:''} yet.</div>
         ) : (
           <>
             <div className="app-list">
-              {pagedApps.map((app,i)=>(
-                <Reveal key={app.id} delay={Math.min(i*.06,.4)}>
-                  <div className={`app-card app-card--clickable${app.status==='reviewed'?' app-card--reviewed':''}`}
-                    onClick={()=>setSelectedApp(app)}>
-                    <div className="app-card-head">
-                      <div className="app-head-left">
-                        <span className="app-name">{app.name}</span>
-                        <span className="app-cid">CID: {app.citizenId}</span>
+              {pagedApps.map((app,i)=>{
+                const tags = getTags(app)
+                const isReviewed = tags.includes('reviewed')
+                return (
+                  <Reveal key={app.id} delay={Math.min(i*.06,.4)}>
+                    <div className={`app-card app-card--clickable${isReviewed?' app-card--reviewed':''}`}
+                      onClick={()=>setSelectedApp(app)}>
+                      <div className="app-card-head">
+                        <div className="app-head-left">
+                          <span className="app-name">{app.name}</span>
+                          <span className="app-cid">CID: {app.citizenId}</span>
+                        </div>
+                        <div className="app-head-right">
+                          <div className="app-tag-row">
+                            {tags.map(tid=><AppTagChip key={tid} tagId={tid}/>)}
+                          </div>
+                          <span className="app-dept">{app.department}{app.rank?` · ${app.rank}`:''}</span>
+                        </div>
                       </div>
-                      <div className="app-head-right">
-                        <span className={`app-status-badge${app.status==='reviewed'?' app-status-badge--ok':''}`}>
-                          {app.status==='reviewed'?'✓ Reviewed':'● Pending'}
-                        </span>
-                        <span className="app-dept">{app.department}{app.rank?` · ${app.rank}`:''}</span>
+                      <div className="app-why">{app.why}</div>
+                      <div className="app-footer">
+                        <div className="app-footer-meta">
+                          {app.availability && <span className="app-meta-item">&#128337; {app.availability}</span>}
+                          {app.discord      && <span className="app-meta-item">&#128172; {app.discord}</span>}
+                        </div>
+                        <div className="app-footer-actions" onClick={e=>e.stopPropagation()}>
+                          <button className="app-btn app-btn--del" onClick={()=>deleteApp(app.id)}>Delete</button>
+                        </div>
                       </div>
                     </div>
-                    <div className="app-why">{app.why}</div>
-                    <div className="app-footer">
-                      <div className="app-footer-meta">
-                        {app.availability && <span className="app-meta-item">&#128337; {app.availability}</span>}
-                        {app.discord      && <span className="app-meta-item">&#128172; {app.discord}</span>}
-                      </div>
-                      <div className="app-footer-actions" onClick={e=>e.stopPropagation()}>
-                        <button className="app-btn app-btn--review" onClick={()=>markReviewed(app.id)}>
-                          {app.status==='reviewed'?'Mark Pending':'Mark Reviewed'}
-                        </button>
-                        <button className="app-btn app-btn--del" onClick={()=>deleteApp(app.id)}>Delete</button>
-                      </div>
-                    </div>
-                  </div>
-                </Reveal>
-              ))}
+                  </Reveal>
+                )
+              })}
             </div>
             <Paginator page={appPage} total={filtered.length} perPage={APP_PER_PAGE} onChange={setAppPage}/>
           </>
         )}
 
         {/* Application detail modal */}
-        {selectedApp && (
-          <div className="app-modal-overlay" onClick={()=>setSelectedApp(null)}>
-            <motion.div className="app-modal-box" onClick={e=>e.stopPropagation()}
-              initial={{opacity:0,scale:.94,y:16}} animate={{opacity:1,scale:1,y:0}}
-              transition={{duration:.22,ease:'easeOut'}}>
-              <div className="app-modal-head">
-                <div>
-                  <div className="app-modal-name">{selectedApp.name}</div>
-                  <div className="app-modal-sub">CID: {selectedApp.citizenId}</div>
-                </div>
-                <div style={{display:'flex',alignItems:'center',gap:'.75rem'}}>
-                  <span className={`app-status-badge${selectedApp.status==='reviewed'?' app-status-badge--ok':''}`}>
-                    {selectedApp.status==='reviewed'?'✓ Reviewed':'● Pending'}
-                  </span>
+        {selectedApp && (()=>{
+          const tags = getTags(selectedApp)
+          return (
+            <div className="app-modal-overlay" onClick={()=>setSelectedApp(null)}>
+              <motion.div className="app-modal-box" onClick={e=>e.stopPropagation()}
+                initial={{opacity:0,scale:.94,y:16}} animate={{opacity:1,scale:1,y:0}}
+                transition={{duration:.22,ease:'easeOut'}}>
+
+                {/* Header */}
+                <div className="app-modal-head">
+                  <div>
+                    <div className="app-modal-name">{selectedApp.name}</div>
+                    <div className="app-modal-sub">CID: {selectedApp.citizenId} · {selectedApp.department}{selectedApp.rank?` · ${selectedApp.rank}`:''}</div>
+                  </div>
                   <button className="fe-modal-close" onClick={()=>setSelectedApp(null)}>&#10005;</button>
                 </div>
-              </div>
-              <div className="app-modal-fields">
-                {[
-                  {q:'Current Department', a: selectedApp.department},
-                  {q:'Current Rank / Callsign', a: selectedApp.rank||'—'},
-                  {q:'Availability', a: selectedApp.availability||'—'},
-                  {q:'Discord Tag', a: selectedApp.discord||'—'},
-                  {q:'Why do you want to join SAPR?', a: selectedApp.why},
-                ].map(({q,a})=>(
-                  <div key={q} className="app-modal-field">
-                    <div className="app-modal-q">{q}</div>
-                    <div className="app-modal-a">{a}</div>
+
+                {/* Tag picker */}
+                <div className="app-modal-tags-section">
+                  <div className="app-modal-q" style={{marginBottom:'.6rem'}}>Tags</div>
+                  <div className="app-tag-picker">
+                    {APP_TAGS.map(t=>{
+                      const active = tags.includes(t.id)
+                      return (
+                        <button key={t.id}
+                          className={`app-tag-pill${active?' app-tag-pill--active':''}`}
+                          style={active?{color:t.color,background:t.bg,borderColor:t.color+'66'}:{}}
+                          onClick={()=>toggleTag(selectedApp.id, t.id)}>
+                          {active ? '✓ ' : '+ '}{t.label}
+                        </button>
+                      )
+                    })}
                   </div>
-                ))}
-              </div>
-              <div className="app-modal-actions" onClick={e=>e.stopPropagation()}>
-                <button className="app-btn app-btn--review" onClick={()=>markReviewed(selectedApp.id)}>
-                  {selectedApp.status==='reviewed'?'Mark Pending':'Mark Reviewed'}
-                </button>
-                <button className="app-btn app-btn--del" onClick={()=>{ deleteApp(selectedApp.id); setSelectedApp(null) }}>Delete</button>
-              </div>
-            </motion.div>
-          </div>
-        )}
+                </div>
+
+                {/* Form fields */}
+                <div className="app-modal-fields">
+                  {[
+                    {q:'Current Department',          a: selectedApp.department},
+                    {q:'Current Rank / Callsign',     a: selectedApp.rank||'—'},
+                    {q:'Availability',                a: selectedApp.availability||'—'},
+                    {q:'Discord Tag',                 a: selectedApp.discord||'—'},
+                    {q:'Why do you want to join SAPR?', a: selectedApp.why},
+                  ].map(({q,a})=>(
+                    <div key={q} className="app-modal-field">
+                      <div className="app-modal-q">{q}</div>
+                      <div className="app-modal-a">{a}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="app-modal-actions">
+                  <button className="app-btn app-btn--del" onClick={()=>deleteApp(selectedApp.id)}>Delete Application</button>
+                </div>
+              </motion.div>
+            </div>
+          )
+        })()}
       </div>
     </section>
   )

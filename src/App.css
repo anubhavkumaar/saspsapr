@@ -88,8 +88,20 @@
   border: none;
   cursor: pointer;
 }
-.nav-link:hover   { color: var(--em); background: var(--ed); }
-.nav-link--active { color: var(--em) !important; background: var(--ed); }
+.nav-link:hover    { color: var(--em); background: var(--ed); }
+.nav-link--active  { color: var(--em) !important; background: var(--ed); }
+.nav-link--page    { color: var(--t2); }
+
+/* Divider between scroll-links and page-links */
+.nav-divider {
+  width: 1px;
+  height: 14px;
+  background: var(--ln);
+  margin: 0 0.3rem;
+  align-self: center;
+  flex-shrink: 0;
+  list-style: none;
+}
 .nav-tag {
   font: 500 10px/1 var(--mono);
   letter-spacing: 2px;
@@ -159,6 +171,25 @@
 }
 .nav-drawer-link:hover       { color: var(--em); background: var(--ed); }
 .nav-drawer-link--active     { color: var(--em); }
+.nav-drawer-sep {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .5rem 2rem;
+  margin-top: .25rem;
+}
+.nav-drawer-sep span {
+  font: 600 9px/1 var(--mono);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--t3);
+}
+.nav-drawer-sep::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--ln);
+}
 
 /* Mobile breakpoint */
 @media (max-width: 768px) {
@@ -1812,6 +1843,44 @@
   padding: 0.25rem 0.6rem;
 }
 .app-status-badge--ok { color: var(--em); background: var(--ed); border-color: var(--eb); }
+
+/* Tag chips */
+.app-tag-row { display: flex; flex-wrap: wrap; gap: .3rem; justify-content: flex-end; }
+.app-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  font: 600 9px/1 var(--mono);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+  border-radius: 99px;
+  padding: .22rem .55rem;
+}
+.app-tag-remove {
+  background: none; border: none; cursor: pointer;
+  color: inherit; opacity: .7; padding: 0; font-size: 8px; line-height: 1;
+}
+.app-tag-remove:hover { opacity: 1; }
+
+/* Tag picker in modal */
+.app-modal-tags-section {
+  padding: .9rem 1.5rem;
+  border-bottom: 1px solid var(--ln);
+}
+.app-tag-picker { display: flex; flex-wrap: wrap; gap: .4rem; }
+.app-tag-pill {
+  font: 500 11px/1 var(--mono);
+  padding: .35rem .75rem;
+  border-radius: 99px;
+  border: 1px solid var(--ln);
+  background: var(--s2);
+  color: var(--t3);
+  cursor: pointer;
+  transition: all .15s;
+}
+.app-tag-pill:hover { border-color: rgba(255,255,255,.2); color: var(--t1); }
+.app-tag-pill--active { font-weight: 700; }
 .app-why {
   font: 400 13px/1.7 var(--ui);
   color: var(--t2);
