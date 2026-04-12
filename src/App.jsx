@@ -2346,11 +2346,14 @@ function ProposalPage() {
 }
 
 /* ─── MAIN PAGE ─────────────────────────────────────────── */
+// Module-level flag — survives React remounts within the same page load, resets on hard refresh
+let _introPlayed = false
+
 function MainPage() {
-  const [done,setDone]=useState(false)
+  const [done, setDone] = useState(_introPlayed)
   return (
     <>
-      {!done && <Intro onDone={()=>setDone(true)}/>}
+      {!done && <Intro onDone={()=>{ _introPlayed = true; setDone(true) }}/>}
       <Navbar/>
       <DeptHero/>
       <SectionDiv label="Section 01 — Department Roster"/>
