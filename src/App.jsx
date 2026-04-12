@@ -383,13 +383,17 @@ function Navbar() {
 
   const otherRouteLinks= routeLinks.filter(l=>l.to!=='/')
   const allLinks = [
-    // On home page, Home scrolls to #hero instead of re-navigating to /
     onHome
-      ? { type:'anchor', l:'Home', href:'#hero' }
+      ? { type:'scroll', l:'Home', id:'hero' }
       : { type:'route',  l:'Home', to:'/' },
-    ...anchorLinks.map(l=>({ type:'anchor', ...l })),
+    ...anchorLinks.map(l=>({ type:'scroll', l:l.l, id:l.href.replace('#','') })),
     ...otherRouteLinks.map(l=>({ type:'route', ...l })),
   ]
+
+  const scrollTo = (id) => {
+    document.getElementById(id)?.scrollIntoView({ behavior:'smooth' })
+    setOpen(false)
+  }
 
   return (
     <motion.nav className={`nav ${sc?'scrolled':''} ${open?'nav--open':''}`}
@@ -397,7 +401,7 @@ function Navbar() {
 
       {/* Brand */}
       {onHome
-        ? <a href="#hero" className="nav-brand">
+        ? <button className="nav-brand" onClick={()=>scrollTo('hero')}>
             <div className="nav-logos">
               <div className="nav-logo" style={{backgroundImage:`url(${logoRanger})`}}/>
               <div className="nav-logo" style={{backgroundImage:`url(${logoState})`}}/>
@@ -406,7 +410,7 @@ function Navbar() {
               <span className="nav-title">SAPR</span>
               <span className="nav-sub">San Andreas Park Rangers</span>
             </div>
-          </a>
+          </button>
         : <Link to="/" className="nav-brand">
             <div className="nav-logos">
               <div className="nav-logo" style={{backgroundImage:`url(${logoRanger})`}}/>
@@ -422,9 +426,9 @@ function Navbar() {
       {/* Desktop links */}
       <ul className="nav-links">
         {allLinks.map((l,i)=>(
-          <motion.li key={l.href||l.to} initial={{opacity:0}} animate={{opacity:1}} transition={{delay:.15+i*.05}}>
-            {l.type==='anchor'
-              ? <a className="nav-link" href={l.href}>{l.l}</a>
+          <motion.li key={l.id||l.to} initial={{opacity:0}} animate={{opacity:1}} transition={{delay:.15+i*.05}}>
+            {l.type==='scroll'
+              ? <button className="nav-link" onClick={()=>scrollTo(l.id)}>{l.l}</button>
               : <Link className={`nav-link${loc.pathname===l.to?' nav-link--active':''}`} to={l.to}>{l.l}</Link>
             }
           </motion.li>
@@ -443,9 +447,9 @@ function Navbar() {
         <div className="nav-drawer" onClick={()=>setOpen(false)}>
           <div className="nav-drawer-inner" onClick={e=>e.stopPropagation()}>
             {allLinks.map((l,i)=>(
-              <div key={l.href||l.to} className="nav-drawer-item">
-                {l.type==='anchor'
-                  ? <a className={`nav-drawer-link`} href={l.href} onClick={()=>setOpen(false)}>{l.l}</a>
+              <div key={l.id||l.to} className="nav-drawer-item">
+                {l.type==='scroll'
+                  ? <button className="nav-drawer-link" onClick={()=>scrollTo(l.id)}>{l.l}</button>
                   : <Link className={`nav-drawer-link${loc.pathname===l.to?' nav-drawer-link--active':''}`} to={l.to}>{l.l}</Link>
                 }
               </div>

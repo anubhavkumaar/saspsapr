@@ -54,6 +54,10 @@
   gap: 0.65rem;
   text-decoration: none;
   flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
 }
 .nav-logos { display: flex; gap: 5px; align-items: center; }
 .nav-logo {
@@ -80,6 +84,9 @@
   text-decoration: none;
   transition: color 0.2s, background 0.2s;
   white-space: nowrap;
+  background: none;
+  border: none;
+  cursor: pointer;
 }
 .nav-link:hover   { color: var(--em); background: var(--ed); }
 .nav-link--active { color: var(--em) !important; background: var(--ed); }
@@ -137,6 +144,7 @@
 .nav-drawer-item { border-bottom: 1px solid rgba(255,255,255,0.04); }
 .nav-drawer-link {
   display: block;
+  width: 100%;
   padding: 0.85rem 2rem;
   font: 500 12px/1 var(--mono);
   letter-spacing: 1.5px;
@@ -144,6 +152,10 @@
   color: var(--t2);
   text-decoration: none;
   transition: color 0.2s, background 0.2s;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
 }
 .nav-drawer-link:hover       { color: var(--em); background: var(--ed); }
 .nav-drawer-link--active     { color: var(--em); }
