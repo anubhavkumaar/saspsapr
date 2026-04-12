@@ -1118,6 +1118,21 @@
   margin: 0 0 0.9rem;
   text-transform: uppercase;
 }
+.fe-mgmt-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.75rem;
+  margin: 1rem 0 0;
+  background: var(--s2);
+  border: 1px solid var(--ln);
+  border-radius: var(--r);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+.fe-mgmt-section-head:hover { background: var(--s3, rgba(255,255,255,.06)); }
+.fe-mgmt-chevron { font-size: 10px; color: var(--t3); }
 .fe-mgmt-form {
   display: flex;
   flex-wrap: wrap;

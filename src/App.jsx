@@ -1241,10 +1241,25 @@ function FinalAskSection() {
 
 /* ─── FOOTER ────────────────────────────────────────────── */
 function Footer() {
+  const navigate = useNavigate()
+  const clickCount = useRef(0)
+  const clickTimer = useRef(null)
+
+  const handleLogoClick = () => {
+    clickCount.current += 1
+    clearTimeout(clickTimer.current)
+    if(clickCount.current >= 5) {
+      clickCount.current = 0
+      navigate('/admin')
+      return
+    }
+    clickTimer.current = setTimeout(() => { clickCount.current = 0 }, 2000)
+  }
+
   return (
     <footer className="footer">
       <Reveal>
-        <div className="footer-logos">
+        <div className="footer-logos" onClick={handleLogoClick} style={{cursor:'default'}}>
           <div className="footer-logo-img" style={{backgroundImage:`url(${logoRanger})`}}/>
           <div className="footer-logo-img" style={{backgroundImage:`url(${logoState})`}}/>
         </div>
@@ -1721,7 +1736,8 @@ function RecruitmentSection() {
         {/* Application form or closed notice */}
         <Reveal delay={.2}>
           <div className="rec-form-wrap">
-            {!configLoading && !formOpen && !isAdmin ? (
+            {configLoading ? null
+            : !formOpen && !isAdmin ? (
               <div className="rec-closed">
                 <div className="rec-closed-icon">&#128274;</div>
                 <div className="rec-closed-title">Applications Closed</div>
@@ -2289,6 +2305,7 @@ function UserManagementPanel({ user }) {
   const [resetBusy,        setResetBusy]        = useState(false)
   const [resetErr,         setResetErr]         = useState('')
   const [resetOk,          setResetOk]          = useState('')
+  const [listOpen,         setListOpen]         = useState(false)
 
   useEffect(()=>{
     const unsub = onSnapshot(collection(db,'sapr_users'), snap => {
@@ -2376,8 +2393,14 @@ function UserManagementPanel({ user }) {
               {nuOk  && <p className="fe-ok">&#10003; {nuOk}</p>}
               <button className="fe-add-btn" type="submit" disabled={nuBusy}>{nuBusy?'Creating…':'+ Create Account'}</button>
             </form>
-            <h4 className="fe-mgmt-title" style={{marginTop:'1.25rem'}}>Registered Officers</h4>
-            <div className="fe-mgmt-list">
+            <div className="fe-mgmt-section-head" onClick={()=>setListOpen(v=>!v)}>
+              <h4 className="fe-mgmt-title" style={{margin:0}}>
+                Registered Officers
+                <span style={{marginLeft:'.5rem',color:'var(--t3)',fontSize:'.75rem'}}>({userList.length})</span>
+              </h4>
+              <span className="fe-mgmt-chevron">{listOpen ? '▲' : '▼'}</span>
+            </div>
+            {listOpen && <div className="fe-mgmt-list">
               {userList.map((u,i)=>{
                 const docId = u.email.replace(/[@.]/g,'_')
                 const storedPass = secretsMap[docId]
@@ -2427,7 +2450,7 @@ function UserManagementPanel({ user }) {
                   <span className="fe-mgmt-email">{em}</span>
                 </div>
               ))}
-            </div>
+            </div>}
           </div>
         </Reveal>
       </div>
@@ -2522,6 +2545,12 @@ function AdminPage() {
     <div style={{minHeight:'100vh',background:'var(--bg)'}}>
       <Navbar/>
       <div style={{paddingTop:'56px'}}>
+
+        {/* Back to site bar */}
+        <div className="proposal-back-bar">
+          <Link to="/" className="proposal-back-btn">← Back to Site</Link>
+          <span className="proposal-back-label">SAPR Admin — Management Only</span>
+        </div>
 
         {/* Admin header */}
         <section className="sec" style={{paddingBottom:'2rem'}}>
