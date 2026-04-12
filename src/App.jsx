@@ -1837,10 +1837,11 @@ function AppTagChip({ tagId, removable, onRemove }) {
 function ApplicationsPanel({ user }) {
   const [apps,        setApps]        = useState([])
   const [filter,      setFilter]      = useState('all')
+  const [search,      setSearch]      = useState('')
   const [appPage,     setAppPage]     = useState(0)
   const [selectedApp, setSelectedApp] = useState(null)
 
-  useEffect(()=>setAppPage(0),[filter])
+  useEffect(()=>setAppPage(0),[filter, search])
 
   useEffect(()=>{
     if(!user || !MANAGEMENT_EMAIL.includes(user.email)) return
@@ -1869,9 +1870,14 @@ function ApplicationsPanel({ user }) {
     setSelectedApp(null)
   }
 
-  const filtered  = filter==='all' ? apps : apps.filter(a=>getTags(a).includes(filter))
-  const counts    = Object.fromEntries([['all',apps.length],...APP_TAGS.map(t=>[t.id, apps.filter(a=>getTags(a).includes(t.id)).length])])
-  const pagedApps = filtered.slice(appPage*APP_PER_PAGE, (appPage+1)*APP_PER_PAGE)
+  const tagFiltered = filter==='all' ? apps : apps.filter(a=>getTags(a).includes(filter))
+  const counts      = Object.fromEntries([['all',apps.length],...APP_TAGS.map(t=>[t.id, apps.filter(a=>getTags(a).includes(t.id)).length])])
+  const q           = search.trim().toLowerCase()
+  const filtered    = q ? tagFiltered.filter(a=>
+    [a.name,a.citizenId,a.department,a.rank,a.discord,a.why,a.availability]
+      .some(v=>v?.toLowerCase().includes(q))
+  ) : tagFiltered
+  const pagedApps   = filtered.slice(appPage*APP_PER_PAGE, (appPage+1)*APP_PER_PAGE)
 
   return (
     <section className="sec sec--dark" id="applications">
@@ -1882,6 +1888,22 @@ function ApplicationsPanel({ user }) {
             <p className="sec-tag">Management Only</p>
             <SplitReveal text="Recruitment Applications" className="sec-title" delay={.1} stagger={.028}/>
             <div className="sec-rule"/>
+          </div>
+        </Reveal>
+
+        {/* Search */}
+        <Reveal delay={.08}>
+          <div className="app-search-wrap">
+            <span className="app-search-icon">&#9906;</span>
+            <input
+              className="fe-input app-search-input"
+              placeholder="Search by name, CID, department, Discord…"
+              value={search}
+              onChange={e=>setSearch(e.target.value)}
+            />
+            {search && (
+              <button className="app-search-clear" onClick={()=>setSearch('')}>&#10005;</button>
+            )}
           </div>
         </Reveal>
 
