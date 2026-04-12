@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Fragment } from 'react'
 import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion, useScroll, useTransform, useInView, useMotionValue } from 'framer-motion'
 import './App.css'
@@ -568,7 +568,57 @@ function DeptHero() {
 }
 
 /* ─── ROSTER SECTION ─────────────────────────────────────── */
+const ROSTER_SECTION_DEFAULT = ['Overwatch', 'High Command', 'Command', 'Supervisor', 'Rangers']
+const ROSTER_COLS         = ['Call Sign', 'CID', 'Name', 'SAPR Rank', 'SASP Rank', 'Department', 'Status', 'Join Date']
+const ROSTER_DEPTS        = ['SASP', 'LSPD', 'BCSO', 'SAPR', 'Civilian']
+const ROSTER_STATUSES     = ['Active', 'Inactive', 'LOA']
+
+// YYYY-MM-DD  →  MM/DD/YY   (falls back to raw string for legacy data)
+function fmtRosterDate(v) {
+  if (!v) return '—'
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+    const [y, m, d] = v.split('-')
+    return `${m}/${d}/${y.slice(2)}`
+  }
+  return v
+}
+
+function RosterDeptChip({ dept }) {
+  const map = {
+    SASP: 'roster-dept--sasp',
+    LSPD: 'roster-dept--lspd',
+    BCSO: 'roster-dept--bcso',
+    SAPR: 'roster-dept--sapr',
+  }
+  return <span className={`roster-dept-chip ${map[dept] || ''}`}>{dept}</span>
+}
+
+function RosterStatusChip({ status }) {
+  const map = { Active: 'roster-status--active', Inactive: 'roster-status--inactive', LOA: 'roster-status--loa' }
+  return <span className={`roster-status-chip ${map[status] || ''}`}>{status}</span>
+}
+
 function RosterSection() {
+  const [allMembers, setAllMembers] = useState([])
+  const [sections,   setSections]   = useState(ROSTER_SECTION_DEFAULT)
+
+  useEffect(() => {
+    const unsubM = onSnapshot(
+      query(collection(db, 'sapr_roster'), orderBy('order', 'asc')),
+      snap => setAllMembers(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    )
+    const unsubS = onSnapshot(doc(db, 'sapr_config', 'roster'), snap => {
+      if (snap.exists() && Array.isArray(snap.data().sections))
+        setSections(snap.data().sections)
+    })
+    return () => { unsubM(); unsubS() }
+  }, [])
+
+  const grouped = sections.map(name => ({
+    name,
+    members: allMembers.filter(m => m.section === name),
+  }))
+
   return (
     <section className="sec sec--dark" id="roster">
       <div className="sec-inner">
@@ -582,13 +632,36 @@ function RosterSection() {
           </div>
         </Reveal>
         <Reveal delay={.15}>
-          <div className="roster-wrap">
-            <iframe
-              src="https://docs.google.com/spreadsheets/d/e/2PACX-1vTVP9ajLq4BVZ0sY4WthrRoexEfoCB3cjlONL3nkj-3wtF70tKODFkFeWewvmKXsavTDB538PZKWgrW/pubhtml"
-              className="roster-frame"
-              title="SAPR Department Roster"
-              frameBorder="0"
-            />
+          <div className="roster-table-wrap">
+            {grouped.map(section => (
+              <div key={section.name} className="roster-section">
+                <div className="roster-section-head">
+                  <span className="roster-section-name">{section.name}</span>
+                  <span className="roster-section-count">{section.members.length} officer{section.members.length !== 1 ? 's' : ''}</span>
+                </div>
+                <div className="roster-grid">
+                  {ROSTER_COLS.map(col => (
+                    <div key={col} className="roster-th">{col}</div>
+                  ))}
+                  {section.members.length === 0 ? (
+                    <div className="roster-empty">No personnel assigned</div>
+                  ) : (
+                    section.members.map((m, i) => (
+                      <Fragment key={m.id || i}>
+                        <div className="roster-td roster-td--mono">{m.callSign}</div>
+                        <div className="roster-td roster-td--mono">{m.cid}</div>
+                        <div className="roster-td roster-td--name">{m.name}</div>
+                        <div className="roster-td">{m.saprRank}</div>
+                        <div className="roster-td">{m.saspRank}</div>
+                        <div className="roster-td"><RosterDeptChip dept={m.dept}/></div>
+                        <div className="roster-td"><RosterStatusChip status={m.status}/></div>
+                        <div className="roster-td roster-td--mono">{fmtRosterDate(m.joinDate)}</div>
+                      </Fragment>
+                    ))
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </Reveal>
       </div>
@@ -2585,6 +2658,260 @@ function UserManagementPanel({ user }) {
   )
 }
 
+/* ─── ROSTER MANAGEMENT ─────────────────────────────────── */
+const EDIT_COLS = ['Call Sign', 'CID', 'Name', 'SAPR Rank', 'SASP Rank', 'Dept', 'Status', 'Join Date', 'Section']
+
+function RosterManagementPanel({ user }) {
+  const [members,    setMembers]    = useState([])
+  const [sections,   setSections]   = useState(ROSTER_SECTION_DEFAULT)
+  const [rows,       setRows]       = useState({})
+  const [saving,     setSaving]     = useState(new Set())
+  const [err,        setErr]        = useState('')
+  const [newSection, setNewSection] = useState('')
+  const [secBusy,    setSecBusy]    = useState(false)
+  const rowDataRef = useRef({})
+  const editingId  = useRef(null)
+
+  useEffect(() => {
+    const unsubM = onSnapshot(
+      query(collection(db, 'sapr_roster'), orderBy('order', 'asc')),
+      snap => {
+        const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        setMembers(docs)
+        setRows(prev => {
+          const next = {}
+          docs.forEach(m => {
+            if (editingId.current === m.id) {
+              next[m.id] = prev[m.id] || { ...m }
+            } else {
+              next[m.id] = { ...m }
+              rowDataRef.current[m.id] = { ...m }
+            }
+          })
+          return next
+        })
+      }
+    )
+    const unsubS = onSnapshot(doc(db, 'sapr_config', 'roster'), snap => {
+      if (snap.exists() && Array.isArray(snap.data().sections))
+        setSections(snap.data().sections)
+    })
+    return () => { unsubM(); unsubS() }
+  }, [])
+
+  if (!user || !MANAGEMENT_EMAIL.includes(user.email)) return null
+
+  /* ── section helpers ── */
+  const writeSections = async (next) => {
+    setSecBusy(true)
+    try   { await setDoc(doc(db, 'sapr_config', 'roster'), { sections: next }, { merge: true }) }
+    catch (e) { setErr(e.message || 'Failed to save sections.') }
+    finally   { setSecBusy(false) }
+  }
+
+  const addSection = async () => {
+    const name = newSection.trim()
+    if (!name) return
+    if (sections.includes(name)) { setErr(`Section "${name}" already exists.`); return }
+    await writeSections([...sections, name])
+    setNewSection('')
+  }
+
+  const deleteSection = async (name) => {
+    if (members.some(m => m.section === name)) {
+      setErr(`Move all officers out of "${name}" before deleting it.`)
+      return
+    }
+    if (!window.confirm(`Delete section "${name}"?`)) return
+    await writeSections(sections.filter(s => s !== name))
+  }
+
+  const moveSection = async (idx, dir) => {
+    const next = [...sections]
+    const swap = dir === 'up' ? idx - 1 : idx + 1
+    if (swap < 0 || swap >= next.length) return
+    ;[next[idx], next[swap]] = [next[swap], next[idx]]
+    await writeSections(next)
+  }
+
+  /* ── row helpers ── */
+  const updateField = (id, field, value) => {
+    const updated = { ...(rowDataRef.current[id] || {}), [field]: value }
+    rowDataRef.current[id] = updated
+    setRows(prev => ({ ...prev, [id]: updated }))
+  }
+
+  const saveRow = async (id) => {
+    const data = rowDataRef.current[id]
+    if (!data) return
+    const { id: _id, ...fields } = data
+    setSaving(prev => new Set(prev).add(id))
+    try   { await setDoc(doc(db, 'sapr_roster', id), fields) }
+    catch (e) { setErr(e.message || 'Save failed.') }
+    finally   { setSaving(prev => { const s = new Set(prev); s.delete(id); return s }) }
+  }
+
+  const handleFocus  = (id) => { editingId.current = id }
+  const handleBlur   = (id) => { editingId.current = null; saveRow(id) }
+  const handleSelect = (id, field, value) => { updateField(id, field, value); saveRow(id) }
+
+  const addRow = async (section) => {
+    try {
+      await addDoc(collection(db, 'sapr_roster'), {
+        section, callSign: '', cid: '', name: 'New Officer',
+        saprRank: 'Ranger', saspRank: '', dept: 'SASP',
+        status: 'Active', joinDate: '', order: Date.now(),
+      })
+    } catch (e) { setErr(e.message || 'Add failed.') }
+  }
+
+  const deleteRow = async (id) => {
+    const name = rowDataRef.current[id]?.name || '?'
+    if (!window.confirm(`Remove ${name} from the roster?`)) return
+    try   { await deleteDoc(doc(db, 'sapr_roster', id)) }
+    catch (e) { setErr(e.message || 'Delete failed.') }
+  }
+
+  const moveRow = async (id, dir) => {
+    const sectionName = rowDataRef.current[id]?.section
+    const sec  = members.filter(m => m.section === sectionName).sort((a,b) => (a.order||0)-(b.order||0))
+    const idx  = sec.findIndex(m => m.id === id)
+    const swap = dir === 'up' ? idx - 1 : idx + 1
+    if (swap < 0 || swap >= sec.length) return
+    try {
+      await Promise.all([
+        setDoc(doc(db,'sapr_roster', sec[idx].id),  { order: sec[swap].order ?? 0 }, { merge:true }),
+        setDoc(doc(db,'sapr_roster', sec[swap].id), { order: sec[idx].order  ?? 0 }, { merge:true }),
+      ])
+    } catch (e) { setErr(e.message || 'Reorder failed.') }
+  }
+
+  const grouped = sections.map(name => ({
+    name,
+    members: members.filter(m => m.section === name).sort((a,b) => (a.order||0)-(b.order||0)),
+  }))
+
+  return (
+    <section className="sec sec--dark" id="roster-management">
+      <div className="sec-inner">
+        <Reveal>
+          <div className="sec-head">
+            <span className="sec-num" style={{color:'var(--em)'}}>ROSTER</span>
+            <p className="sec-tag">Management Only</p>
+            <SplitReveal text="Manage Roster" className="sec-title" delay={.1} stagger={.028}/>
+            <FadeWords text="Click any cell to edit — changes save automatically on blur" className="sec-sub"/>
+            <div className="sec-rule"/>
+          </div>
+        </Reveal>
+
+        <Reveal delay={.08}>
+          {err && (
+            <p className="fe-err" style={{marginBottom:'1rem'}}>
+              &#9888; {err}
+              <button onClick={()=>setErr('')} style={{background:'none',border:'none',color:'inherit',cursor:'pointer',marginLeft:'.5rem'}}>&#10005;</button>
+            </p>
+          )}
+
+          {/* ── Section manager ── */}
+          <div className="rsec-panel">
+            <div className="rsec-panel-head">
+              <span className="rsec-panel-title">Sections</span>
+              <span className="rsec-panel-count">{sections.length} section{sections.length!==1?'s':''}</span>
+            </div>
+            <div className="rsec-list">
+              {sections.map((s, idx) => (
+                <div key={s} className="rsec-row">
+                  <div className="rsec-ctrl">
+                    <button className="roster-ctrl-btn" onClick={()=>moveSection(idx,'up')}   disabled={idx===0||secBusy}>↑</button>
+                    <button className="roster-ctrl-btn" onClick={()=>moveSection(idx,'down')} disabled={idx===sections.length-1||secBusy}>↓</button>
+                  </div>
+                  <span className="rsec-name">{s}</span>
+                  <span className="rsec-count">{members.filter(m=>m.section===s).length} officers</span>
+                  <button className="roster-ctrl-btn roster-ctrl-btn--del" onClick={()=>deleteSection(s)} disabled={secBusy} title="Delete section">&#10005;</button>
+                </div>
+              ))}
+            </div>
+            <div className="rsec-add">
+              <input
+                className="fe-input"
+                placeholder="New section name…"
+                value={newSection}
+                onChange={e=>setNewSection(e.target.value)}
+                onKeyDown={e=>e.key==='Enter'&&addSection()}
+                disabled={secBusy}
+              />
+              <button className="fe-add-btn" onClick={addSection} disabled={secBusy||!newSection.trim()}>
+                {secBusy?'Saving…':'+ Add Section'}
+              </button>
+            </div>
+          </div>
+        </Reveal>
+
+        <Reveal delay={.14}>
+          {/* ── Roster table ── */}
+          <div className="roster-table-wrap" style={{marginTop:'1.5rem'}}>
+            {grouped.map(section => (
+              <div key={section.name} className="roster-section">
+                <div className="roster-section-head">
+                  <span className="roster-section-name">{section.name}</span>
+                  <span className="roster-section-count">{section.members.length} officer{section.members.length!==1?'s':''}</span>
+                </div>
+
+                <div className="roster-edit-grid">
+                  <div className="roster-th"/>
+                  {EDIT_COLS.map(c => <div key={c} className="roster-th">{c}</div>)}
+                  <div className="roster-th"/>
+                </div>
+
+                {section.members.map((m, idx) => {
+                  const row   = rows[m.id] || m
+                  const isSav = saving.has(m.id)
+                  return (
+                    <div key={m.id} className={`roster-edit-grid${isSav?' roster-row--saving':''}`}>
+                      <div className="roster-td roster-td--ctrl">
+                        <button className="roster-ctrl-btn" title="Move up"   onClick={()=>moveRow(m.id,'up')}   disabled={idx===0||isSav}>↑</button>
+                        <button className="roster-ctrl-btn" title="Move down" onClick={()=>moveRow(m.id,'down')} disabled={idx===section.members.length-1||isSav}>↓</button>
+                      </div>
+                      <div className="roster-td"><input className="roster-cell-input roster-cell-input--mono" value={row.callSign||''} onChange={e=>updateField(m.id,'callSign',e.target.value)} onFocus={()=>handleFocus(m.id)} onBlur={()=>handleBlur(m.id)} disabled={isSav}/></div>
+                      <div className="roster-td"><input className="roster-cell-input roster-cell-input--mono" value={row.cid||''} onChange={e=>updateField(m.id,'cid',e.target.value)} onFocus={()=>handleFocus(m.id)} onBlur={()=>handleBlur(m.id)} disabled={isSav}/></div>
+                      <div className="roster-td"><input className="roster-cell-input roster-cell-input--bold" value={row.name||''} onChange={e=>updateField(m.id,'name',e.target.value)} onFocus={()=>handleFocus(m.id)} onBlur={()=>handleBlur(m.id)} disabled={isSav}/></div>
+                      <div className="roster-td"><input className="roster-cell-input" value={row.saprRank||''} onChange={e=>updateField(m.id,'saprRank',e.target.value)} onFocus={()=>handleFocus(m.id)} onBlur={()=>handleBlur(m.id)} disabled={isSav}/></div>
+                      <div className="roster-td"><input className="roster-cell-input" value={row.saspRank||''} onChange={e=>updateField(m.id,'saspRank',e.target.value)} onFocus={()=>handleFocus(m.id)} onBlur={()=>handleBlur(m.id)} disabled={isSav}/></div>
+                      <div className="roster-td">
+                        <select className="roster-cell-input" value={row.dept||'SASP'} onChange={e=>handleSelect(m.id,'dept',e.target.value)} disabled={isSav}>
+                          {ROSTER_DEPTS.map(d=><option key={d}>{d}</option>)}
+                        </select>
+                      </div>
+                      <div className="roster-td">
+                        <select className="roster-cell-input" value={row.status||'Active'} onChange={e=>handleSelect(m.id,'status',e.target.value)} disabled={isSav}>
+                          {ROSTER_STATUSES.map(s=><option key={s}>{s}</option>)}
+                        </select>
+                      </div>
+                      <div className="roster-td"><input type="date" className="roster-cell-input roster-cell-input--date" value={row.joinDate||''} onChange={e=>updateField(m.id,'joinDate',e.target.value)} onFocus={()=>handleFocus(m.id)} onBlur={()=>handleBlur(m.id)} disabled={isSav}/></div>
+                      <div className="roster-td">
+                        <select className="roster-cell-input" value={row.section||section.name} onChange={e=>handleSelect(m.id,'section',e.target.value)} disabled={isSav}>
+                          {sections.map(s=><option key={s}>{s}</option>)}
+                        </select>
+                      </div>
+                      <div className="roster-td roster-td--ctrl">
+                        <button className="roster-ctrl-btn roster-ctrl-btn--del" title="Remove" onClick={()=>deleteRow(m.id)} disabled={isSav}>&#10005;</button>
+                      </div>
+                    </div>
+                  )
+                })}
+
+                <div className="roster-add-row">
+                  <button className="roster-add-btn" onClick={()=>addRow(section.name)}>+ Add officer to {section.name}</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  )
+}
+
 /* ─── ADMIN PAGE ─────────────────────────────────────────── */
 function AdminPage() {
   const [user,         setUser]         = useState(null)
@@ -2727,6 +3054,7 @@ function AdminPage() {
         </section>
 
         <UserManagementPanel user={user}/>
+        <RosterManagementPanel user={user}/>
         <ApplicationsPanel user={user}/>
         <Footer/>
       </div>

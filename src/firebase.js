@@ -26,19 +26,25 @@
 //            allow read, write: if request.auth != null
 //              && request.auth.token.email in [
 //                'sapr@anubhav.gg',
-//                'eddiebrock@sapr.gg'
+//                'eddiebrock@sapr.gg',
+//                'rexdavis@sapr.gg'
 //              ];
 //          }
 //          match /sapr_applications/{doc} {
 //            allow create: if true;
 //            allow read, update, delete: if request.auth != null;
 //          }
+//          match /sapr_roster/{doc} {
+//            allow read: if true;
+//            allow write: if request.auth != null;
+//          }
 //          match /sapr_config/{doc} {
 //            allow read: if true;
 //            allow write: if request.auth != null
 //              && request.auth.token.email in [
 //                'sapr@anubhav.gg',
-//                'eddiebrock@sapr.gg'
+//                'eddiebrock@sapr.gg',
+//                'rexdavis@sapr.gg'
 //              ];
 //          }
 //        }

@@ -1535,21 +1535,259 @@
 }
 
 /* ===================== ROSTER ===================== */
-.roster-wrap {
+/* ── Roster table ── */
+.roster-table-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid var(--ln);
+  border-radius: var(--rm);
+  overflow: hidden;
+}
+.roster-section {
+  background: var(--s);
+  overflow-x: auto;
+}
+.roster-section + .roster-section {
+  border-top: 1px solid var(--ln);
+}
+.roster-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 16px;
+  background: rgba(16,185,129,0.10);
+  border-bottom: 1px solid rgba(16,185,129,0.18);
+}
+.roster-section-name {
+  font: 700 11px/1 var(--mono);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--em);
+}
+.roster-section-count {
+  font: 500 11px/1 var(--mono);
+  color: var(--t3);
+  letter-spacing: .06em;
+}
+.roster-grid {
+  display: grid;
+  grid-template-columns: 80px 80px minmax(140px,1fr) 140px 140px 90px 90px 100px;
+  min-width: 900px;
+}
+.roster-th {
+  padding: 8px 12px;
+  font: 600 10px/1 var(--mono);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--t3);
+  border-bottom: 1px solid var(--ln);
+  background: var(--s2);
+  white-space: nowrap;
+}
+.roster-td {
+  padding: 10px 12px;
+  font: 400 13px/1.3 var(--ui);
+  color: var(--t2);
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  display: flex;
+  align-items: center;
+}
+.roster-section:last-child .roster-td { border-bottom: none; }
+.roster-form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: .5rem;
+}
+/* ── Admin editable grid ── */
+.roster-edit-grid {
+  display: grid;
+  grid-template-columns: 44px 76px 76px minmax(120px,1fr) 120px 120px 88px 88px 88px 118px 40px;
+  min-width: 1060px;
+}
+.roster-td--ctrl {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px;
+}
+.roster-ctrl-btn {
+  background: none;
+  border: 1px solid var(--ln);
+  color: var(--t3);
+  border-radius: 3px;
+  font-size: 11px;
+  line-height: 1;
+  padding: 3px 6px;
+  cursor: pointer;
+  transition: color .12s, border-color .12s, background .12s;
+}
+.roster-ctrl-btn:hover:not(:disabled) { color: var(--t1); border-color: var(--t2); }
+.roster-ctrl-btn:disabled { opacity: .25; cursor: default; }
+.roster-ctrl-btn--del { border-color: rgba(239,68,68,.3); color: var(--red); }
+.roster-ctrl-btn--del:hover:not(:disabled) { background: var(--redd); border-color: var(--red); }
+.roster-cell-input {
   width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--t2);
+  font: 400 12px/1.2 var(--ui);
+  padding: 5px 6px;
+  border-radius: 3px;
+  outline: none;
+  transition: background .12s, border-color .12s, color .12s;
+  box-sizing: border-box;
+}
+.roster-cell-input:focus {
+  background: rgba(255,255,255,.04);
+  border-color: var(--em);
+  color: var(--t1);
+}
+.roster-cell-input:hover:not(:focus):not(:disabled) { border-color: var(--ln); }
+.roster-cell-input:disabled { opacity: .4; cursor: default; }
+.roster-cell-input--mono { font-family: var(--mono); font-size: 11px; }
+.roster-cell-input--bold { font-weight: 600; color: var(--t1); }
+.roster-cell-input option { background: var(--s2); color: var(--t1); }
+.roster-cell-input--date {
+  font-family: var(--mono);
+  font-size: 11px;
+  color-scheme: dark;
+}
+.roster-cell-input--date::-webkit-calendar-picker-indicator {
+  filter: invert(0.6) sepia(1) saturate(2) hue-rotate(100deg);
+  cursor: pointer;
+  opacity: .7;
+  border-radius: 2px;
+}
+.roster-cell-input--date::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+.roster-row--saving { opacity: .55; pointer-events: none; }
+.roster-add-row {
+  padding: 8px 12px;
+  border-top: 1px solid var(--ln);
+}
+.roster-add-btn {
+  background: none;
+  border: 1px dashed var(--ln);
+  color: var(--t3);
+  font: 500 11px/1 var(--mono);
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color .12s, border-color .12s;
+}
+.roster-add-btn:hover { color: var(--em); border-color: rgba(16,185,129,.4); }
+
+/* ── Section manager panel ── */
+.rsec-panel {
   border: 1px solid var(--ln);
   border-radius: var(--rm);
   overflow: hidden;
   background: var(--s);
+  margin-bottom: .5rem;
 }
-.roster-frame {
-  width: 100%;
-  height: 520px;
-  border: none;
-  display: block;
-  background: #fff;
-  filter: invert(0.88) hue-rotate(170deg) saturate(0.6);
+.rsec-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: rgba(16,185,129,.07);
+  border-bottom: 1px solid var(--ln);
 }
+.rsec-panel-title {
+  font: 700 11px/1 var(--mono);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--em);
+}
+.rsec-panel-count {
+  font: 500 11px/1 var(--mono);
+  color: var(--t3);
+}
+.rsec-list {
+  display: flex;
+  flex-direction: column;
+}
+.rsec-row {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(255,255,255,.03);
+}
+.rsec-row:last-child { border-bottom: none; }
+.rsec-ctrl {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+.rsec-name {
+  font: 600 13px/1 var(--ui);
+  color: var(--t1);
+  flex: 1;
+}
+.rsec-count {
+  font: 400 11px/1 var(--mono);
+  color: var(--t3);
+  flex-shrink: 0;
+  min-width: 60px;
+  text-align: right;
+}
+.rsec-add {
+  display: flex;
+  gap: .5rem;
+  padding: 10px 14px;
+  border-top: 1px solid var(--ln);
+  background: rgba(255,255,255,.015);
+}
+.rsec-add .fe-input { flex: 1; }
+.rsec-add .fe-add-btn { flex-shrink: 0; white-space: nowrap; }
+.roster-td--mono {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--t3);
+}
+.roster-td--name {
+  font-weight: 600;
+  color: var(--t1);
+}
+.roster-empty {
+  grid-column: 1 / -1;
+  padding: 14px 16px;
+  font: 400 12px/1 var(--mono);
+  color: var(--t3);
+  font-style: italic;
+}
+/* dept chips */
+.roster-dept-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font: 600 10px/1 var(--mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+.roster-dept--sasp { background: rgba(59,130,246,0.12); color: #60a5fa; border-color: rgba(59,130,246,0.25); }
+.roster-dept--lspd { background: rgba(59,130,246,0.12); color: #60a5fa; border-color: rgba(59,130,246,0.25); }
+.roster-dept--bcso { background: rgba(245,158,11,0.12); color: #fbbf24; border-color: rgba(245,158,11,0.25); }
+.roster-dept--sapr { background: rgba(16,185,129,0.12); color: var(--em); border-color: rgba(16,185,129,0.25); }
+/* status chips */
+.roster-status-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font: 600 10px/1 var(--mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+.roster-status--active   { background: rgba(16,185,129,0.12); color: var(--em); border-color: rgba(16,185,129,0.25); }
+.roster-status--inactive { background: var(--redd); color: var(--red); border-color: var(--redb); }
+.roster-status--loa      { background: var(--orgd); color: var(--org); border-color: var(--orgb); }
 
 /* ===================== HUNTING ===================== */
 .hunt-block-title {
