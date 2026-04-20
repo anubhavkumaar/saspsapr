@@ -554,6 +554,7 @@ function Navbar() {
     : [
         {l:'Home',      to:'/'},
         {l:'Field Work',to:'/fieldwork'},
+        ...(user ? [{l:'Licenses', to:'/licenses'}] : []),
         {l:'Join',      to:'/joinsapr'},
         {l:'Proposal',  to:'/proposal'},
       ]
@@ -3919,6 +3920,7 @@ function RangerPage() {
   const [profile,  setProfile]  = useState(null)
   const [linkedApp,setLinkedApp]= useState(null)
   const [openPanel,setOpenPanel]= useState(null)   // 'profile' | 'alerts' | null
+  const [tab,      setTab]      = useState('overview')  // 'overview' | 'feed'
   const [alerts,   setAlerts]   = useState([])
   const [lastSeen, setLastSeen] = useState(() => Number(localStorage.getItem('sapr_alerts_seen') || 0))
 
@@ -4104,98 +4106,96 @@ function RangerPage() {
           </div>
         </div>
 
-        {/* Welcome hero */}
-        <section className="sec">
-          <div className="sec-inner">
-            <Reveal>
-              <div className="ranger-hero">
-                <div className="ranger-hero-eyebrow">Duty Status · Active</div>
-                <h1 className="ranger-hero-title">
-                  Welcome, <span className="ranger-hero-name">Ranger {displayName}</span>
-                </h1>
-                <p className="ranger-hero-sub">
-                  San Andreas Park Rangers · {resolvedRole === 'management' ? 'Management' : 'Field Ranger'}
-                </p>
-              </div>
-            </Reveal>
+        {/* Tab nav */}
+        <div style={{position:'sticky',top:'56px',zIndex:40,display:'flex',gap:'.3rem',padding:'.55rem 2.5rem',background:'var(--s)',borderBottom:'1px solid var(--ln)',overflowX:'auto'}}>
+          {[
+            {k:'overview',l:'Overview',ic:'🎯'},
+            {k:'feed',    l:'Announcements',ic:'📢',badge:unreadCount},
+          ].map(t=>(
+            <button key={t.k} type="button" onClick={()=>setTab(t.k)}
+              style={{
+                position:'relative',
+                display:'inline-flex',alignItems:'center',gap:'.4rem',
+                padding:'.5rem .95rem',borderRadius:'999px',
+                background: tab===t.k ? 'rgba(63,200,120,0.15)' : 'rgba(255,255,255,0.03)',
+                border: tab===t.k ? '1px solid rgba(63,200,120,0.45)' : '1px solid rgba(255,255,255,0.08)',
+                color: tab===t.k ? 'var(--em)' : 'var(--t1)',
+                cursor:'pointer',
+                font:'600 13px/1 var(--ui)',letterSpacing:'.2px',whiteSpace:'nowrap',
+              }}>
+              <span>{t.ic}</span><span>{t.l}</span>
+              {t.badge>0 && (
+                <span style={{minWidth:'18px',height:'18px',padding:'0 5px',borderRadius:'999px',background:'var(--red)',color:'#fff',font:'700 10px/18px var(--mono)',textAlign:'center'}}>{t.badge}</span>
+              )}
+            </button>
+          ))}
+        </div>
 
-            <Reveal delay={.08}>
-              <div className="ranger-profile-grid">
-                <div className="ranger-profile-card">
-                  <div className="ranger-profile-label">Callsign</div>
-                  <div className="ranger-profile-val">{profile?.callsign || linkedApp?.rank || '—'}</div>
+        {/* Overview */}
+        {tab === 'overview' && (
+          <section className="sec">
+            <div className="sec-inner">
+              <Reveal>
+                <div className="ranger-hero">
+                  <div className="ranger-hero-eyebrow">Duty Status · Active</div>
+                  <h1 className="ranger-hero-title">
+                    Welcome, <span className="ranger-hero-name">Ranger {displayName}</span>
+                  </h1>
+                  <p className="ranger-hero-sub">
+                    San Andreas Park Rangers · {resolvedRole === 'management' ? 'Management' : 'Field Ranger'}
+                  </p>
                 </div>
-                <div className="ranger-profile-card">
-                  <div className="ranger-profile-label">Origin Dept</div>
-                  <div className="ranger-profile-val">{linkedApp?.department || '—'}</div>
-                </div>
-                <div className="ranger-profile-card">
-                  <div className="ranger-profile-label">Citizen ID</div>
-                  <div className="ranger-profile-val">{linkedApp?.citizenId || '—'}</div>
-                </div>
-                <div className="ranger-profile-card">
-                  <div className="ranger-profile-label">Role</div>
-                  <div className="ranger-profile-val" style={{textTransform:'capitalize'}}>{resolvedRole}</div>
-                </div>
-              </div>
-            </Reveal>
+              </Reveal>
 
-            <Reveal delay={.12}>
-              <div style={{textAlign:'right',marginTop:'1.25rem'}}>
-                <button className="app-btn app-btn--del" onClick={()=>signOut(auth)}>Sign Out</button>
-              </div>
-            </Reveal>
-          </div>
-        </section>
+              <Reveal delay={.08}>
+                <div className="ranger-profile-grid">
+                  <div className="ranger-profile-card">
+                    <div className="ranger-profile-label">Callsign</div>
+                    <div className="ranger-profile-val">{profile?.callsign || linkedApp?.rank || '—'}</div>
+                  </div>
+                  <div className="ranger-profile-card">
+                    <div className="ranger-profile-label">Origin Dept</div>
+                    <div className="ranger-profile-val">{linkedApp?.department || '—'}</div>
+                  </div>
+                  <div className="ranger-profile-card">
+                    <div className="ranger-profile-label">Citizen ID</div>
+                    <div className="ranger-profile-val">{linkedApp?.citizenId || '—'}</div>
+                  </div>
+                  <div className="ranger-profile-card">
+                    <div className="ranger-profile-label">Role</div>
+                    <div className="ranger-profile-val" style={{textTransform:'capitalize'}}>{resolvedRole}</div>
+                  </div>
+                </div>
+              </Reveal>
 
-        {/* Ranger Posts */}
-        <section className="sec sec--dark">
-          <div className="sec-inner">
-            <Reveal>
-              <div className="sec-head">
-                <span className="sec-num" style={{color:'var(--em)'}}>FEED</span>
-                <p className="sec-tag">Ranger Bulletin</p>
-                <SplitReveal text="Announcements & Orders" className="sec-title" delay={.1} stagger={.028}/>
-                <div className="sec-rule"/>
-              </div>
-            </Reveal>
-            <Reveal delay={.08}>
-              <PostsBoard canEdit={canEdit} authorEmail={user.email}/>
-            </Reveal>
-          </div>
-        </section>
+              <Reveal delay={.12}>
+                <div style={{textAlign:'right',marginTop:'1.25rem'}}>
+                  <button className="app-btn app-btn--del" onClick={()=>signOut(auth)}>Sign Out</button>
+                </div>
+              </Reveal>
+            </div>
+          </section>
+        )}
 
-        {/* Hunting Log — live Google Sheet */}
-        <section className="sec" id="hunting-log">
-          <div className="sec-inner">
-            <Reveal>
-              <div className="sec-head">
-                <span className="sec-num" style={{color:'var(--gold)'}}>LOG</span>
-                <p className="sec-tag">Field Operations</p>
-                <SplitReveal text="Hunting Log — Live Sheet" className="sec-title" delay={.1} stagger={.028}/>
-                <FadeWords text="Update hunting kills, tags, and incidents directly below. Changes sync instantly for all rangers." className="sec-sub"/>
-                <div className="sec-rule"/>
-              </div>
-            </Reveal>
-            <Reveal delay={.08}>
-              <div className="ranger-sheet-bar">
-                <span className="ranger-sheet-status"><span className="sdot sdot--em"/> Live · auto-saves to Google Sheets</span>
-                <a className="fe-add-btn" href="https://docs.google.com/spreadsheets/d/12IUCLWEUFxP-d4e50UNahn0dzx2xGqfgYX585KonyqQ/edit?gid=148885738#gid=148885738"
-                  target="_blank" rel="noopener noreferrer">Open in new tab ↗</a>
-              </div>
-              <div className="ranger-sheet-frame-wrap">
-                <iframe
-                  className="ranger-sheet-frame"
-                  src="https://docs.google.com/spreadsheets/d/12IUCLWEUFxP-d4e50UNahn0dzx2xGqfgYX585KonyqQ/edit?rm=minimal&gid=148885738#gid=148885738"
-                  title="SAPR Hunting Log"
-                  allow="clipboard-read; clipboard-write"/>
-              </div>
-              <p className="ranger-sheet-hint">
-                &#9432; You must be signed into Google with a whitelisted account to edit. Contact Management if you can't see the sheet.
-              </p>
-            </Reveal>
-          </div>
-        </section>
+        {/* Announcements */}
+        {tab === 'feed' && (
+          <section className="sec sec--dark">
+            <div className="sec-inner">
+              <Reveal>
+                <div className="sec-head">
+                  <span className="sec-num" style={{color:'var(--em)'}}>FEED</span>
+                  <p className="sec-tag">Ranger Bulletin</p>
+                  <SplitReveal text="Announcements & Orders" className="sec-title" delay={.1} stagger={.028}/>
+                  <div className="sec-rule"/>
+                </div>
+              </Reveal>
+              <Reveal delay={.08}>
+                <PostsBoard canEdit={canEdit} authorEmail={user.email}/>
+              </Reveal>
+            </div>
+          </section>
+        )}
+
 
         <Footer/>
       </div>
@@ -4392,6 +4392,121 @@ function BlockedGate() {
   )
 }
 
+/* ─── HUNTING LICENSE REGISTRY (reusable — public + ranger) ─ */
+const HUNTING_SHEET_ID  = '12IUCLWEUFxP-d4e50UNahn0dzx2xGqfgYX585KonyqQ'
+const HUNTING_SHEET_GID = '148885738'
+const HUNTING_SHEET_EDIT_URL = `https://docs.google.com/spreadsheets/d/${HUNTING_SHEET_ID}/edit?gid=${HUNTING_SHEET_GID}#gid=${HUNTING_SHEET_GID}`
+const HUNTING_SHEET_EMBED_URL = `https://docs.google.com/spreadsheets/d/${HUNTING_SHEET_ID}/edit?rm=minimal&gid=${HUNTING_SHEET_GID}&range=A1#gid=${HUNTING_SHEET_GID}`
+const HUNTING_SHEET_VIEW_URL  = `https://docs.google.com/spreadsheets/d/${HUNTING_SHEET_ID}/htmlembed?gid=${HUNTING_SHEET_GID}&single=true&widget=false&headers=false&chrome=false`
+
+function HuntingLicenseRegistry({ canEdit = false }) {
+  const [fs,  setFs]  = useState(false)
+  const [key, setKey] = useState(0)
+  useEffect(() => {
+    if(!fs) return
+    const onKey = e => { if(e.key === 'Escape') setFs(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [fs])
+
+  return (
+    <section className="hl-registry" id="hunting-log">
+      <div className="hl-registry__head">
+        <div className="hl-registry__head-text">
+          <div className="hl-registry__eyebrow">
+            <span className="sdot sdot--em"/> Live · {canEdit ? 'Field Operations' : 'Public Registry'}
+          </div>
+          <h1 className="hl-registry__title">Hunting License Registry</h1>
+          <p className="hl-registry__sub">
+            {canEdit
+              ? 'Issue, verify, and track hunting & weapon licenses. Live-synced with Google Sheets.'
+              : 'Verify hunting & weapon licenses issued by SAPR. Read-only view — contact a Ranger for new issuance.'}
+          </p>
+        </div>
+        <div className="hl-registry__actions">
+          <button type="button" className="hl-btn" onClick={()=>setKey(k=>k+1)} title="Reload sheet">
+            <span>↻</span> Reload
+          </button>
+          <button type="button" className="hl-btn" onClick={()=>setFs(v=>!v)} title={fs?'Exit fullscreen':'Fullscreen'}>
+            <span>⛶</span> {fs ? 'Exit Fullscreen' : 'Fullscreen'}
+          </button>
+          <a className="hl-btn hl-btn--primary" href={HUNTING_SHEET_EDIT_URL} target="_blank" rel="noopener noreferrer">
+            Open in Sheets <span>↗</span>
+          </a>
+        </div>
+      </div>
+
+      <div className={'hl-sheet' + (fs ? ' hl-sheet--fs' : '')}>
+        {fs && (
+          <button type="button" onClick={()=>setFs(false)} aria-label="Exit fullscreen" className="hl-sheet__exit">✕ Exit Fullscreen</button>
+        )}
+        <iframe
+          key={key}
+          className="hl-sheet__frame"
+          src={canEdit ? HUNTING_SHEET_EMBED_URL : HUNTING_SHEET_VIEW_URL}
+          title="SAPR Hunting License Registry"
+          loading="lazy"
+          allow="clipboard-read; clipboard-write"/>
+      </div>
+
+      <div className="hl-registry__tips">
+        <div className="hl-tip"><b>🔍 Search</b><span>Click inside the sheet then press <kbd>Ctrl/Cmd</kbd>+<kbd>F</kbd> to find a name or CID.</span></div>
+        <div className="hl-tip"><b>⛶ Fullscreen</b><span>Wide registry with many columns — use fullscreen for comfortable viewing.</span></div>
+        <div className="hl-tip">
+          <b>🔐 Access</b>
+          <span>{canEdit
+            ? 'Sign in with a whitelisted Google account to edit. Contact Management if the sheet is blank.'
+            : 'Read-only public view. Rangers and Management can edit from the Ranger Portal.'}</span>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function HuntingLicensesPage() {
+  const { user, role, authLoaded } = useAuthWithRole()
+
+  if (!authLoaded) return (
+    <div style={{minHeight:'100vh',background:'var(--bg)'}}>
+      <Navbar/>
+      <div style={{paddingTop:'56px',display:'flex',alignItems:'center',justifyContent:'center',minHeight:'80vh'}}>
+        <span style={{color:'var(--t3)'}}>Loading…</span>
+      </div>
+    </div>
+  )
+
+  if (!user) return (
+    <div style={{minHeight:'100vh',background:'var(--bg)'}}>
+      <Navbar/>
+      <div style={{paddingTop:'56px',display:'flex',alignItems:'center',justifyContent:'center',minHeight:'80vh'}}>
+        <div style={{textAlign:'center',maxWidth:'440px',padding:'0 1.5rem'}}>
+          <div style={{fontSize:'44px',marginBottom:'.6rem'}}>🔒</div>
+          <h1 style={{font:'800 26px/1.2 var(--disp)',color:'var(--t1)',margin:'0 0 .5rem'}}>Sign-in required</h1>
+          <p style={{color:'var(--t3)',font:'400 14px/1.6 var(--ui)',margin:'0 0 1.25rem'}}>
+            The Hunting License Registry is only visible to signed-in users. Please sign in through the Ranger Portal or Join SAPR to request access.
+          </p>
+          <div style={{display:'flex',gap:'.5rem',justifyContent:'center',flexWrap:'wrap'}}>
+            <Link to="/ranger"   className="btn-secondary">Ranger Portal</Link>
+            <Link to="/joinsapr" className="btn-secondary">Join SAPR</Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+  const resolvedRole = effectiveRole(user, role)
+  const canEdit = resolvedRole === 'ranger' || resolvedRole === 'management'
+  return (
+    <div style={{minHeight:'100vh',background:'var(--bg)'}}>
+      <Navbar/>
+      <div style={{paddingTop:'56px'}}>
+        <HuntingLicenseRegistry canEdit={canEdit}/>
+        <Footer/>
+      </div>
+    </div>
+  )
+}
+
 /* ─── APP ───────────────────────────────────────────────── */
 export default function App() {
   return (
@@ -4405,6 +4520,7 @@ export default function App() {
         <Route path="/fishing" element={<MainPage/>}/>
         <Route path="/map"     element={<MainPage/>}/>
         <Route path="/fieldwork" element={<FishingEvidencePage/>}/>
+        <Route path="/licenses"  element={<HuntingLicensesPage/>}/>
         <Route path="/joinsapr" element={<JoinSAPRPage/>}/>
         <Route path="/proposal" element={<ProposalPage/>}/>
         <Route path="/admin" element={<AdminPage/>}/>
