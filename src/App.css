@@ -193,10 +193,13 @@
 
 /* Mobile breakpoint */
 @media (max-width: 768px) {
+  .nav {
+    grid-template-columns: 1fr auto;  /* brand fills space, burger on right */
+    padding: 0 1.25rem;
+  }
   .nav-links { display: none; }
   .nav-tag   { display: none; }
   .nav-burger { display: flex; }
-  .nav { padding: 0 1.25rem; }
 }
 
 /* ===================== HERO ===================== */
