@@ -1345,6 +1345,15 @@ function Footer() {
         <div className="footer-rule"/>
         <div className="footer-sub">Protecting wildlife · Enforcing regulations · Preserving the ecosystem</div>
         <div className="footer-sub" style={{marginTop:'.4rem'}}>Built &amp; led by Game Warden Rex Davis (222) · Founding Officer, San Andreas Park Rangers</div>
+        <nav className="footer-links">
+          <a href="#hero"    className="footer-link">Home</a>
+          <a href="#roster"  className="footer-link">Roster</a>
+          <a href="#hunting" className="footer-link">Hunting</a>
+          <a href="#fishing" className="footer-link">Fishing</a>
+          <a href="#map"     className="footer-link">Zone Map</a>
+          <Link to="/joinsapr" className="footer-link">Join SAPR</Link>
+          <Link to="/proposal" className="footer-link">Proposal</Link>
+        </nav>
       </Reveal>
     </footer>
   )

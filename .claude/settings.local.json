@@ -3,7 +3,15 @@
     "allow": [
       "WebFetch(domain:docs.google.com)",
       "Bash(npm run:*)",
-      "Bash(firebase deploy:*)"
+      "Bash(firebase deploy:*)",
+      "Bash(cat C:\\\\\\\\Users\\\\\\\\anubh\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\claude\\\\\\\\C--Users-anubh-Downloads-SAPR\\\\\\\\bbfea381-a756-422a-a7d9-ca927345198b\\\\\\\\tasks\\\\\\\\be1acwdzc.output)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(ffprobe -v quiet -print_format json -show_streams public/cougar.mp4)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); v=[s for s in d['streams'] if s['codec_type']=='video'][0]; print\\(f\\\\\"Duration: {v.get\\('duration','?'\\)}s, FPS: {v.get\\('r_frame_rate','?'\\)}, Size: {v.get\\('width'\\)}x{v.get\\('height'\\)}\\\\\"\\)\")",
+      "Bash(where ffmpeg *)",
+      "Bash(winget install *)",
+      "Bash(export PATH=\"$PATH:/c/Users/anubh/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-7.1.1-full_build/bin\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); v=[s for s in d['streams'] if s['codec_type']=='video'][0]; print\\(f\\\\\"Duration: {v.get\\('duration','?'\\)}s | FPS: {v.get\\('r_frame_rate','?'\\)} | {v.get\\('width'\\)}x{v.get\\('height'\\)}\\\\\"\\)\")"
     ]
   }
 }
