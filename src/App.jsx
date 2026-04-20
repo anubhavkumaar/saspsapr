@@ -992,7 +992,7 @@ function OverviewSection() {
           {[
             {icon:'📜',st:'Active',       sd:'sdot--em',  sc:'var(--em)',  title:'Fishing Laws Live',         cl:'',        body:'Official fishing regulations are now in force. Citizens are actively obtaining $650 licenses through the attorney licensing system. The regulatory framework exists — but enforcement does not.'},
             {icon:'📡',st:'Mar 27, 2026', sd:'sdot--org', sc:'var(--org)', title:'Dispatch Overloaded',        cl:'card--org',body:'Over ten Code 10-49A calls hit dispatch in under 23 minutes from a single location — Procopio Promenade. They competed directly with standard city calls. Most went unresponded.'},
-            {icon:'🎯',st:'Not Yet Open', sd:'sdot--gold',sc:'var(--gold)',title:'Hunting Window Approaching', cl:'card--gold',body:'Hunting licenses have not been issued yet. This is our only window to establish SAPR before firearms, remote terrain, and endangered species simultaneously enter the equation.'},
+            {icon:'🎯',st:'Active',       sd:'sdot--red', sc:'var(--red)', title:'Hunting Season Now Open',   cl:'card--red', body:'Hunting licenses are now being issued and hunting is actively underway. Licensed firearms, remote wilderness terrain, and 33 documented protected and endangered species are simultaneously in play — SAPR stand-up is no longer preventative, it is overdue.'},
             {icon:'⚠', st:'0 Officers',  sd:'sdot--red', sc:'var(--red)', title:'No Dedicated Unit Exists',   cl:'card--red', body:'There is no dedicated environmental enforcement officer, no independent chain of command, and no dedicated protocol for wildlife calls. All violations are handled — or more often not handled — by general patrol.'},
           ].map((c,i)=>(
             <Reveal key={i} delay={i*.09}>
@@ -1222,7 +1222,7 @@ function WhySection() {
 function HuntingSection() {
   const HUNT_AREAS = ['Mount Chiliad','Mount Josiah','Mount Gordo','Chiliad Mountain State Wilderness','San Chianski Mountain Range']
   const RESTRICTIONS = [
-    'Conservation officers may request to inspect your game at any time',
+    'SASP officers may search your person, vehicle, and storage at any time to verify compliance',
     'Cannot buy, sell, or possess — dead or alive — any part of a protected species',
     'Must stay at least 15 meters from the road at all times',
     'Do not skin animals directly on hunting trails — move off to the side',
@@ -1269,13 +1269,13 @@ function HuntingSection() {
           <div className="equip-grid" style={{marginTop:'2rem'}}>
             <div className="equip-block">
               <div className="equip-title" style={{color:'var(--em)'}}>Legal Equipment</div>
-              {['Hunting Rifle'].map((item,i)=>(
+              {['Hunting Rifle','Hunting Knife','Hunting Decoy'].map((item,i)=>(
                 <div key={i} className="equip-row"><span className="equip-icon equip-icon--ok">✓</span><span>{item}</span></div>
               ))}
             </div>
             <div className="equip-block">
               <div className="equip-title" style={{color:'var(--red)'}}>Illegal Equipment</div>
-              {['All Pistols','Automatic Weapons'].map((item,i)=>(
+              {['All Pistols','Automatic Weapons','Non-Hunting Rifles','Clean Barrels','Commercial / Industrial Vehicles'].map((item,i)=>(
                 <div key={i} className="equip-row"><span className="equip-icon equip-icon--no">✗</span><span>{item}</span></div>
               ))}
             </div>
@@ -1309,16 +1309,21 @@ function HuntingSection() {
           <h3 className="hunt-block-title" style={{marginTop:'2.5rem'}}>Obtaining a Hunting License</h3>
           <div className="step-list">
             {[
-              'Consult with a licensed Attorney in San Andreas',
-              'Present a valid ID — required before purchase',
-              'Pay the licensing fee: $1,000 (clean record) or $3,250 (any misdemeanors or felonies)',
-              'License issued by San Andreas State Police after attorney consultation',
+              'Visit EMS to obtain a Medical Certificate — $1,500',
+              'Contact a Private Attorney who will explain the licensing process and requirements',
+              'Pay the $6,000 DOJ fee via attorney billing (clean record required — felons must first expunge charges)',
+              'Proceed to any Police Department (e.g. Mission Row) with your attorney to have the license issued',
+              'Acquire hunting equipment from Locked & Loaded or any licensed ammunition store',
             ].map((step,i)=>(
               <motion.div key={i} className="step-item" whileHover={{x:8}}>
                 <div className="step-num">{i+1}</div>
                 <div>{step}</div>
               </motion.div>
             ))}
+          </div>
+          <div className="alert alert--danger" style={{marginTop:'.9rem'}}>
+            <span className="alert-icon">▶</span>
+            <span>Prior felony or misdemeanor convictions must be <strong>fully expunged</strong> before a license can be issued. If a license is <strong>revoked</strong> by law enforcement, the underlying charge must be expunged through <strong>Traffic Court</strong> before a new one can be issued. — <em>By Order, William Hale, Attorney General, State of San Andreas</em></span>
           </div>
         </Reveal>
 
@@ -1371,12 +1376,16 @@ function FishingSection() {
         <Reveal delay={.15}>
           <h3 style={{marginBottom:'.7rem',font:'700 20px/1 var(--ui)',letterSpacing:'-.2px'}}>Licensing Process</h3>
           <div className="step-list">
-            {['Consult a Private Attorney for a licensing consultation','Attorney explains the complete licensing procedure and requirements','Pay the $650 licensing fee','Proceed to Del Perro Pier with attorney and a PD officer to finalize license','Acquire fishing equipment from a state-authorized vendor on Del Perro Pier'].map((step,i)=>(
+            {['Consult a Private Attorney for a licensing consultation','Attorney explains the complete licensing procedure and requirements','Pay the $650 DOJ fee via attorney billing (direct payment not permitted)','Accompanied by your attorney, visit the State Attorney\u2019s Office, any PD officer, or the State Clerk to have the license issued','Acquire fishing equipment from a state-authorized vendor on Del Perro Pier'].map((step,i)=>(
               <motion.div key={i} className="step-item" whileHover={{x:8}}>
                 <div className="step-num">{i+1}</div>
                 <div>{step}</div>
               </motion.div>
             ))}
+          </div>
+          <div className="alert alert--danger" style={{marginTop:'.9rem'}}>
+            <span className="alert-icon">▶</span>
+            <span>You <strong>must be accompanied by your Private Attorney</strong> at the point of issuance — no attorney, no license. If a license is <strong>revoked</strong> by law enforcement, the underlying charge must be expunged through <strong>Traffic Court</strong> before a new one can be issued. — <em>By Order, William Hale, Attorney General, State of San Andreas</em></span>
           </div>
         </Reveal>
         <Reveal delay={.2}>
@@ -3824,7 +3833,7 @@ function PostsBoard({ canEdit, authorEmail }) {
               <div className="post-card-body">{p.body}</div>
               <div className="post-card-meta">
                 {p.createdBy && <span>{p.createdBy}</span>}
-                {p.createdAt?.toDate && <span>· {p.createdAt.toDate().toLocaleString()}</span>}
+                {p.createdAt?.toDate && <span>· {p.createdAt.toDate().toLocaleString('en-GB',{ timeZone:'Asia/Kolkata', hour12:false })} IST</span>}
               </div>
             </article>
           ))}
