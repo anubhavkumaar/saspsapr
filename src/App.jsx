@@ -33,12 +33,23 @@ function useAuthWithRole() {
 
   useEffect(()=>{
     if(!user) return
+    const sessionKey = `sapr_pwSeen_${user.uid}`
+    let baseline = Number(localStorage.getItem(sessionKey) || 0)
     const unsub = onSnapshot(doc(db,'sapr_users', userDocId(user.email)), snap => {
       const data = snap.exists() ? snap.data() : null
       const r = data?.role || null
       setRole(r)
       if(r === 'blocked') {
         setJustBlocked(true)
+        signOut(auth).catch(()=>{})
+        return
+      }
+      const pwAt = data?.passwordChangedAt?.toMillis ? data.passwordChangedAt.toMillis() : 0
+      if(!baseline && pwAt) {
+        baseline = pwAt
+        localStorage.setItem(sessionKey, String(pwAt))
+      } else if(pwAt && pwAt > baseline) {
+        localStorage.removeItem(sessionKey)
         signOut(auth).catch(()=>{})
       }
     })
@@ -4252,7 +4263,12 @@ function ProfileEditor({ user, profile }) {
       const cred = EmailAuthProvider.credential(auth.currentUser.email, pwCur)
       await reauthenticateWithCredential(auth.currentUser, cred)
       await updatePassword(auth.currentUser, pw1)
-      setOk('Password updated.'); setPwCur(''); setPw1(''); setPw2('')
+      await setDoc(doc(db,'sapr_users', userDocId(user.email)), {
+        passwordChangedAt: serverTimestamp(),
+      }, { merge:true })
+      setOk('Password updated. Signing out of all sessions…'); setPwCur(''); setPw1(''); setPw2('')
+      try { localStorage.removeItem(`sapr_pwSeen_${auth.currentUser.uid}`) } catch { /* storage unavailable */ }
+      setTimeout(()=>{ signOut(auth).catch(()=>{}) }, 1200)
     } catch(e) {
       setErr(e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential'
         ? 'Current password is incorrect.'
