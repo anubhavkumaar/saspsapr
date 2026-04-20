@@ -113,13 +113,13 @@ const PENAL_CODES = [
   { code:'10008', offense:'Poaching',                          cls:'Felony',      ch:'chip--red',  s:'25 months', f:'$7,500' },
 ]
 const HUNTING_SPECIES = [
-  { name:'Mule Deer',       st:'Common',   ok:true  },
-  { name:'Wild Boar',       st:'Common',   ok:true  },
-  { name:'Coyotes',         st:'Common',   ok:true  },
-  { name:'Rabbits',         st:'Common',   ok:true  },
-  { name:'Birds (Game)',    st:'Common',   ok:true  },
-  { name:'Cougars',         st:'Rare',     ok:false },
-  { name:'Domestic Animals',st:'Domestic', ok:false },
+  { ic:'🦌', name:'Deer',            st:'Common',   ok:true  },
+  { ic:'🐗', name:'Wild Boar',       st:'Common',   ok:true  },
+  { ic:'🐺', name:'Coyotes',         st:'Common',   ok:true  },
+  { ic:'🐰', name:'Rabbits',         st:'Common',   ok:true  },
+  { ic:'🐦', name:'Birds',           st:'Common',   ok:true  },
+  { ic:'🐈', name:'Cougars',         st:'Protected',ok:false },
+  { ic:'🐕', name:'Domestic Animals',st:'Domestic', ok:false },
 ]
 const WHY = [
   { n:'01', t:'Conflict of Primary Duty',      b:"An LSPD officer's mandate is Los Santos city enforcement. A BCSO officer's is Blaine County patrol. Wildlife enforcement assigned as secondary creates an unresolvable conflict — when a 10-49A competes with a 911, wildlife always loses. Every single time." },
@@ -1231,6 +1231,7 @@ function HuntingSection() {
     'Maximum 150 items per trip (includes all parts removed) — exceeding this is Overhunting',
     'Move up and down trails to avoid over-hunting a single area',
     'Box trucks and large vehicles are strictly prohibited in the woods — treated as intent to poach',
+    'You may kill any animal in genuine self-defense — leave the carcass and file a /311 report immediately',
   ]
   return (
     <section className="sec sec--alt" id="hunting-urgency">
@@ -1249,9 +1250,22 @@ function HuntingSection() {
           </div>
         </Reveal>
 
+        {/* Hunting Stats */}
+        <Reveal delay={.08}>
+          <div className="rule-grid">
+            {[{ic:'💰',k:'License Fee',v:'$6,000'},{ic:'⏰',k:'Hours',v:'05:00 – 19:30'},{ic:'🎯',k:'Trip Limit',v:'150 Items'},{ic:'🗺️',k:'Zones',v:'5 Designated'}].map((r,i)=>(
+              <motion.div key={i} className="card rule-card" whileHover={{scale:1.04,y:-4}}>
+                <div className="rule-icon"><motion.span animate={{y:[0,-4,0]}} transition={{duration:3,repeat:Infinity,delay:i*.3}}>{r.ic}</motion.span></div>
+                <div className="rule-key">{r.k}</div>
+                <div className="rule-val">{r.v}</div>
+              </motion.div>
+            ))}
+          </div>
+        </Reveal>
+
         {/* Hunting Areas */}
         <Reveal delay={.1}>
-          <h3 className="hunt-block-title">Designated Hunting Areas</h3>
+          <h3 className="hunt-block-title" style={{marginTop:'2rem'}}>Designated Hunting Areas</h3>
           <p className="hunt-block-sub">Only five legal hunting areas exist in San Andreas, designated by the hunting lodge in Paleto.</p>
           <div className="hunt-areas">
             {HUNT_AREAS.map((a,i)=>(
@@ -1269,14 +1283,14 @@ function HuntingSection() {
           <div className="equip-grid" style={{marginTop:'2rem'}}>
             <div className="equip-block">
               <div className="equip-title" style={{color:'var(--em)'}}>Legal Equipment</div>
-              {['Hunting Rifle','Hunting Knife','Hunting Decoy'].map((item,i)=>(
-                <div key={i} className="equip-row"><span className="equip-icon equip-icon--ok">✓</span><span>{item}</span></div>
+              {[{ic:'🎯',t:'Hunting Rifle'},{ic:'🔪',t:'Hunting Knife'},{ic:'🪶',t:'Hunting Decoy'}].map((item,i)=>(
+                <div key={i} className="equip-row"><span className="equip-icon equip-icon--ok">✓</span><span style={{marginRight:'.4rem'}}>{item.ic}</span><span>{item.t}</span></div>
               ))}
             </div>
             <div className="equip-block">
               <div className="equip-title" style={{color:'var(--red)'}}>Illegal Equipment</div>
-              {['All Pistols','Automatic Weapons','Non-Hunting Rifles','Clean Barrels','Commercial / Industrial Vehicles'].map((item,i)=>(
-                <div key={i} className="equip-row"><span className="equip-icon equip-icon--no">✗</span><span>{item}</span></div>
+              {[{ic:'🔫',t:'All Pistols'},{ic:'💥',t:'Automatic Weapons'},{ic:'⛔',t:'Non-Hunting Rifles'},{ic:'🛢️',t:'Clean Barrels'},{ic:'🚚',t:'Commercial / Industrial Vehicles'}].map((item,i)=>(
+                <div key={i} className="equip-row"><span className="equip-icon equip-icon--no">✗</span><span style={{marginRight:'.4rem'}}>{item.ic}</span><span>{item.t}</span></div>
               ))}
             </div>
           </div>
@@ -1290,7 +1304,7 @@ function HuntingSection() {
               <tbody>
                 {HUNTING_SPECIES.map((sp,i)=>(
                   <motion.tr key={i} initial={{opacity:0,x:-16}} whileInView={{opacity:1,x:0}} viewport={{once:true}} transition={{delay:i*.05}}>
-                    <td style={{fontWeight:500}}>{sp.name}</td>
+                    <td style={{fontWeight:500}}><span style={{fontSize:'1.15rem',marginRight:'.5rem'}}>{sp.ic}</span>{sp.name}</td>
                     <td><span className={`chip ${sp.ok?'chip--em':sp.st==='Domestic'?'chip--org':'chip--red'}`}>{sp.ok?'Legal':'Protected'}</span></td>
                     <td style={{color:sp.ok?'var(--em)':'var(--red)',fontWeight:600,fontFamily:'var(--mono)',fontSize:'.85rem'}}>{sp.ok?'✓ With License':'✗ Prohibited'}</td>
                   </motion.tr>
@@ -1309,8 +1323,8 @@ function HuntingSection() {
           <h3 className="hunt-block-title" style={{marginTop:'2.5rem'}}>Obtaining a Hunting License</h3>
           <div className="step-list">
             {[
-              'Visit EMS to obtain a Medical Certificate — $1,500',
-              'Contact a Private Attorney who will explain the licensing process and requirements',
+              'Visit a Hospital to obtain a Medical Certificate',
+              'Visit a Private Attorney once your medical test has cleared — they will explain your rights and restrictions',
               'Pay the $6,000 DOJ fee via attorney billing (clean record required — felons must first expunge charges)',
               'Proceed to any Police Department (e.g. Mission Row) with your attorney to have the license issued',
               'Acquire hunting equipment from Locked & Loaded or any licensed ammunition store',
@@ -1323,7 +1337,7 @@ function HuntingSection() {
           </div>
           <div className="alert alert--danger" style={{marginTop:'.9rem'}}>
             <span className="alert-icon">▶</span>
-            <span>Prior felony or misdemeanor convictions must be <strong>fully expunged</strong> before a license can be issued. If a license is <strong>revoked</strong> by law enforcement, the underlying charge must be expunged through <strong>Traffic Court</strong> before a new one can be issued. — <em>By Order, William Hale, Attorney General, State of San Andreas</em></span>
+            <span>Applicants are now required to answer <strong>basic hunting law and safety questions</strong> — failure places the application on a <strong>24-hour hold</strong> before reapplication is permitted. Prior felony or misdemeanor convictions must be <strong>fully expunged</strong> before a license can be issued. If a license is <strong>revoked</strong> by law enforcement, the underlying charge must be expunged through <strong>Traffic Court</strong> before a new one can be issued. — <em>By Order, William Hale, Attorney General, State of San Andreas</em></span>
           </div>
         </Reveal>
 
