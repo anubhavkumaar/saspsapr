@@ -5,7 +5,7 @@ import './App.css'
 import logoRanger from './assets/C1i37hio.png'
 import logoState  from './assets/Ci37h33io.png'
 import { db, auth, firebaseConfig } from './firebase'
-import { collection, addDoc, deleteDoc, doc, setDoc, getDocs, query, orderBy, onSnapshot, serverTimestamp } from 'firebase/firestore'
+import { collection, addDoc, deleteDoc, doc, setDoc, getDocs, query, where, orderBy, onSnapshot, serverTimestamp } from 'firebase/firestore'
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, updatePassword } from 'firebase/auth'
 import { initializeApp, getApps } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
@@ -13,6 +13,72 @@ import { getAuth } from 'firebase/auth'
 // Secondary Firebase app — creates new users without signing out the current admin
 const secondaryApp  = getApps().find(a=>a.name==='secondary') || initializeApp(firebaseConfig,'secondary')
 const secondaryAuth = getAuth(secondaryApp)
+
+/* ─── AUTH + ROLE HOOK ──────────────────────────────────── */
+const userDocId = email => (email || '').replace(/[@.]/g,'_')
+
+function useAuthWithRole() {
+  const [user,       setUser]       = useState(null)
+  const [role,       setRole]       = useState(undefined)   // undefined = not loaded, null = no user doc
+  const [authLoaded, setAuthLoaded] = useState(false)
+  const [justBlocked,setJustBlocked]= useState(false)
+
+  useEffect(()=>{
+    const unsub = onAuthStateChanged(auth, u => {
+      setUser(u); setAuthLoaded(true)
+      if(!u) { setRole(undefined); setJustBlocked(false) }
+    })
+    return unsub
+  },[])
+
+  useEffect(()=>{
+    if(!user) return
+    const unsub = onSnapshot(doc(db,'sapr_users', userDocId(user.email)), snap => {
+      const data = snap.exists() ? snap.data() : null
+      const r = data?.role || null
+      setRole(r)
+      if(r === 'blocked') {
+        setJustBlocked(true)
+        signOut(auth).catch(()=>{})
+      }
+    })
+    return unsub
+  },[user])
+
+  return { user, role, authLoaded, justBlocked, clearBlocked: () => setJustBlocked(false) }
+}
+
+// Effective role resolver — falls back to legacy email allowlist for management
+function effectiveRole(user, role) {
+  if(!user) return null
+  if(role) return role
+  if(MANAGEMENT_EMAIL.includes(user.email)) return 'management'
+  return null
+}
+
+// Convenience guard used by admin panels — accepts either role=management or legacy allowlist
+function isManagementUser(user, role) {
+  return effectiveRole(user, role) === 'management'
+}
+
+function RejectionScreen({ onDismiss }) {
+  return (
+    <motion.div className="rejection-screen"
+      initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{duration:.35,ease:'easeOut'}}>
+      <div className="rejection-icon">&#9888;</div>
+      <div className="rejection-eyebrow">Application Status</div>
+      <h2 className="rejection-title">Sorry, your application was rejected.</h2>
+      <p className="rejection-body">
+        After review, your application to join the San Andreas Park Rangers was not successful.
+        Your credentials have been deactivated.
+      </p>
+      <p className="rejection-body" style={{color:'var(--t3)',fontSize:'.85rem'}}>
+        If you believe this is in error, contact SAPR management on Discord.
+      </p>
+      <button className="app-btn app-btn--del" onClick={onDismiss} style={{marginTop:'1rem'}}>Dismiss</button>
+    </motion.div>
+  )
+}
 
 /* ─── DATA ──────────────────────────────────────────────── */
 const LEGAL_SPECIES = [
@@ -132,12 +198,10 @@ const BirdSvg = ({ size=60 }) => (
     <circle cx="51" cy="12" r="5"/>
     <path d="M 55,12 L 64,10 L 55,15 Z"/>
     <path d="M 22,18 L 8,12 L 8,24 Z"/>
-    <motion.path d="M 31,15 Q 17,4 2,10" stroke="currentColor" strokeWidth="4.5" fill="none" strokeLinecap="round"
-      animate={{d:['M 31,15 Q 17,4 2,10','M 31,17 Q 17,27 2,21','M 31,15 Q 17,4 2,10']}}
-      transition={{duration:.65,repeat:Infinity,ease:'easeInOut'}}/>
-    <motion.path d="M 49,15 Q 63,4 78,10" stroke="currentColor" strokeWidth="4.5" fill="none" strokeLinecap="round"
-      animate={{d:['M 49,15 Q 63,4 78,10','M 49,17 Q 63,27 78,21','M 49,15 Q 63,4 78,10']}}
-      transition={{duration:.65,repeat:Infinity,ease:'easeInOut'}}/>
+    <g className="bird-wings">
+      <path d="M 31,15 Q 17,4 2,10" stroke="currentColor" strokeWidth="4.5" fill="none" strokeLinecap="round"/>
+      <path d="M 49,15 Q 63,4 78,10" stroke="currentColor" strokeWidth="4.5" fill="none" strokeLinecap="round"/>
+    </g>
   </svg>
 )
 
@@ -156,6 +220,23 @@ function RunningAnimals({ type='forest' }) {
           <a.C size={a.sz}/>
         </motion.div>
       ))}
+    </div>
+  )
+}
+
+// Lion prowl — occasional silhouette crossing bottom of hero
+function ProwlShadow() {
+  return (
+    <div className="prowl-shadow-wrap" aria-hidden="true">
+      <motion.div className="prowl-shadow"
+        initial={{x:'-20vw',opacity:0}}
+        animate={{x:['-20vw','110vw'],opacity:[0,0.35,0.35,0]}}
+        transition={{duration:28,delay:8,repeat:Infinity,ease:'linear',repeatDelay:12}}>
+        <svg viewBox="0 0 200 80" width="160" height="64">
+          <path fill="currentColor" d="M10 60 Q14 52 22 52 L28 52 Q30 46 36 46 L40 46 L44 48 L52 46 Q58 44 64 46 L80 46 Q92 42 108 44 L130 44 Q148 42 160 46 Q172 50 180 54 L184 58 L188 56 L192 58 L190 62 L184 64 L178 62 L170 64 L28 64 L22 66 L14 64 Z"/>
+          <circle cx="172" cy="44" r="2" fill="currentColor"/>
+        </svg>
+      </motion.div>
     </div>
   )
 }
@@ -185,14 +266,14 @@ function HuntingCrosshair() {
         transition={{duration:.7,ease:[.34,1.56,.64,1]}}>
         <motion.svg viewBox="0 0 120 120" animate={{rotate:[0,4,-3,2,0]}} transition={{duration:9,repeat:Infinity,ease:'easeInOut'}}>
           <motion.circle cx="60" cy="60" r="50" stroke="currentColor" strokeWidth="1" fill="none"
-            initial={{pathLength:0}} animate={iv?{pathLength:1}:{}} transition={{duration:.8,delay:.1}}/>
+            initial={{pathLength:0}} animate={{pathLength: iv?1:0}} transition={{duration:.8,delay:.1}}/>
           <motion.circle cx="60" cy="60" r="28" stroke="currentColor" strokeWidth="1" fill="none"
-            initial={{pathLength:0}} animate={iv?{pathLength:1}:{}} transition={{duration:.6,delay:.4}}/>
+            initial={{pathLength:0}} animate={{pathLength: iv?1:0}} transition={{duration:.6,delay:.4}}/>
           <motion.circle cx="60" cy="60" r="4" fill="currentColor"
-            initial={{scale:0}} animate={iv?{scale:[0,1.4,1]}:{}} transition={{duration:.4,delay:.9}}/>
+            initial={{scale:0}} animate={{scale: iv?1:0}} transition={{duration:.4,delay:.9}}/>
           {[['60','4','60','30'],['60','90','60','116'],['4','60','30','60'],['90','60','116','60']].map(([x1,y1,x2,y2],i)=>(
             <motion.line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="currentColor" strokeWidth="1.5"
-              initial={{pathLength:0}} animate={iv?{pathLength:1}:{}} transition={{duration:.4,delay:.5+i*.05}}/>
+              initial={{pathLength:0}} animate={{pathLength: iv?1:0}} transition={{duration:.4,delay:.5+i*.05}}/>
           ))}
         </motion.svg>
       </motion.div>
@@ -350,13 +431,27 @@ function Paginator({ page, total, perPage, onChange }) {
   )
 }
 
+// Home section → URL mapping. Each path renders MainPage and scrolls to the section.
+const HOME_SECTIONS = [
+  { id:'hero',            path:'/',        label:'Home'    },
+  { id:'roster',          path:'/roster',  label:'Roster'  },
+  { id:'hunting-urgency', path:'/hunting', label:'Hunting' },
+  { id:'fishing',         path:'/fishing', label:'Fishing' },
+  { id:'map',             path:'/map',     label:'Map'     },
+]
+const HOME_PATHS = HOME_SECTIONS.map(s => s.path)
+const isHomePath = p => HOME_PATHS.includes(p)
+
 /* ─── NAVBAR ────────────────────────────────────────────── */
 function Navbar() {
   const [sc,  setSc]  = useState(false)
   const [open,setOpen]= useState(false)
+  const [activeSection, setActiveSection] = useState('')
+  const { user, role } = useAuthWithRole()
+  const resolvedRole = effectiveRole(user, role)
   const loc     = useLocation()
   const navigate = useNavigate()
-  const onHome   = loc.pathname==='/'
+  const onHome   = isHomePath(loc.pathname)
   const brandClickCount = useRef(0)
   const brandClickTimer = useRef(null)
 
@@ -369,7 +464,7 @@ function Navbar() {
       return
     }
     brandClickTimer.current = setTimeout(() => { brandClickCount.current = 0 }, 2000)
-    if(onHome) scrollTo('hero')
+    if(onHome) scrollTo('hero', '/')
     else navigate('/')
   }
 
@@ -382,10 +477,65 @@ function Navbar() {
   // Close menu on route change
   useEffect(()=>setOpen(false),[loc.pathname])
 
-  const anchorLinks = loc.pathname==='/'
-    ? [{l:'Roster',href:'#roster'},{l:'Hunting',href:'#hunting-urgency'},{l:'Fishing',href:'#fishing'},{l:'Map',href:'#map'}]
+  // On initial load / route change, honor the #hash and scroll to it.
+  useEffect(()=>{
+    const hash = window.location.hash.replace('#','')
+    if(!hash) return
+    // wait one frame so the new route's DOM is mounted
+    const t = setTimeout(()=>{
+      document.getElementById(hash)?.scrollIntoView({ behavior:'smooth', block:'start' })
+    }, 120)
+    return ()=>clearTimeout(t)
+  },[loc.pathname])
+
+  // Scroll-spy: watch section ids per route. On the home paths, also mirror
+  // the URL to the section's dedicated path (e.g. /roster) as the user scrolls.
+  useEffect(()=>{
+    const onHomeArea = isHomePath(loc.pathname)
+    const idsByRoute = {
+      '/proposal': ['hero','overview','proposal','evidence','why','map','finalask'],
+      '/fieldwork':['fishing-evidence','mdt','leaderboard'],
+      '/admin':    ['admin-overview','user-management','applications','roster-management'],
+    }
+    const ids = onHomeArea
+      ? HOME_SECTIONS.map(s => s.id)
+      : (idsByRoute[loc.pathname] || [])
+    if(!ids.length) { setActiveSection(''); return }
+
+    const targets = ids
+      .map(id => document.getElementById(id))
+      .filter(Boolean)
+
+    if(!targets.length) return
+
+    const visibility = new Map(targets.map(t => [t.id, 0]))
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(e => visibility.set(e.target.id, e.intersectionRatio))
+      let bestId = '', bestRatio = 0
+      for(const [id, ratio] of visibility) {
+        if(ratio > bestRatio) { bestRatio = ratio; bestId = id }
+      }
+      if(!bestId || bestRatio <= 0.15) return
+      setActiveSection(bestId)
+      // Mirror section → path on home. Use replaceState so we don't flood history.
+      if(onHomeArea) {
+        const target = HOME_SECTIONS.find(s => s.id === bestId)
+        if(target && window.location.pathname !== target.path) {
+          window.history.replaceState(null, '', target.path)
+        }
+      }
+    }, {
+      rootMargin: '-80px 0px -45% 0px',
+      threshold: [0, 0.15, 0.35, 0.6, 1],
+    })
+    targets.forEach(t => io.observe(t))
+    return ()=>io.disconnect()
+  },[loc.pathname])
+
+  const anchorLinks = onHome
+    ? HOME_SECTIONS.slice(1).map(s => ({ l:s.label, id:s.id, to:s.path }))
     : loc.pathname==='/proposal'
-    ? [{l:'Overview',href:'#overview'},{l:'Evidence',href:'#evidence'},{l:'Why SAPR',href:'#why'},{l:'Map',href:'#map'}]
+    ? [{l:'Overview',id:'overview'},{l:'Evidence',id:'evidence'},{l:'Why SAPR',id:'why'},{l:'Map',id:'map'}]
     : []
 
   const routeLinks = loc.pathname==='/proposal'
@@ -397,16 +547,35 @@ function Navbar() {
         {l:'Proposal',  to:'/proposal'},
       ]
 
-  const otherRouteLinks= routeLinks.filter(l=>l.to!=='/')
+  const otherRouteLinks = routeLinks.filter(l=>l.to!=='/')
+
+  // Append role-gated portal link(s) — always visible regardless of current route
+  if(resolvedRole === 'ranger' || resolvedRole === 'management') {
+    otherRouteLinks.push({ l:'Ranger', to:'/ranger', portal:true })
+  }
+  if(resolvedRole === 'management') {
+    otherRouteLinks.push({ l:'Admin',  to:'/admin',  portal:true })
+  }
   const scrollLinks = [
-    onHome ? { type:'scroll', l:'Home', id:'hero' } : { type:'route', l:'Home', to:'/' },
-    ...anchorLinks.map(l=>({ type:'scroll', l:l.l, id:l.href.replace('#','') })),
+    onHome
+      ? { type:'scroll', l:'Home', id:'hero', to:'/' }
+      : { type:'route',  l:'Home', to:'/' },
+    ...anchorLinks.map(l=>({ type:'scroll', l:l.l, id:l.id, to:l.to })),
   ]
   const pageLinks = otherRouteLinks.map(l=>({ type:'route', ...l }))
 
-  const scrollTo = (id) => {
-    document.getElementById(id)?.scrollIntoView({ behavior:'smooth' })
+  const scrollTo = (id, to) => {
     setOpen(false)
+    // If the section has a dedicated path and we aren't on a home alias, route there first.
+    if(to && !isHomePath(loc.pathname) && HOME_PATHS.includes(to)) {
+      navigate(to)
+      return
+    }
+    document.getElementById(id)?.scrollIntoView({ behavior:'smooth' })
+    // Sync URL immediately on click so the path is right even before spy catches up
+    if(to && window.location.pathname !== to) {
+      window.history.replaceState(null, '', to)
+    }
   }
 
   return (
@@ -430,7 +599,7 @@ function Navbar() {
         {scrollLinks.map((l,i)=>(
           <motion.li key={l.id||l.to} initial={{opacity:0}} animate={{opacity:1}} transition={{delay:.15+i*.05}}>
             {l.type==='scroll'
-              ? <button className="nav-link" onClick={()=>scrollTo(l.id)}>{l.l}</button>
+              ? <button className={`nav-link${activeSection===l.id?' nav-link--active':''}`} onClick={()=>scrollTo(l.id, l.to)}>{l.l}</button>
               : <Link className={`nav-link${loc.pathname===l.to?' nav-link--active':''}`} to={l.to}>{l.l}</Link>
             }
           </motion.li>
@@ -438,7 +607,7 @@ function Navbar() {
         {pageLinks.length > 0 && <li className="nav-divider" aria-hidden="true"/>}
         {pageLinks.map((l,i)=>(
           <motion.li key={l.to} initial={{opacity:0}} animate={{opacity:1}} transition={{delay:.15+(scrollLinks.length+1+i)*.05}}>
-            <Link className={`nav-link nav-link--page${loc.pathname===l.to?' nav-link--active':''}`} to={l.to}>{l.l}</Link>
+            <Link className={`nav-link nav-link--page${l.portal?' nav-link--portal':''}${loc.pathname===l.to?' nav-link--active':''}`} to={l.to}>{l.l}</Link>
           </motion.li>
         ))}
       </ul>
@@ -457,7 +626,7 @@ function Navbar() {
             {scrollLinks.map((l)=>(
               <div key={l.id||l.to} className="nav-drawer-item">
                 {l.type==='scroll'
-                  ? <button className="nav-drawer-link" onClick={()=>scrollTo(l.id)}>{l.l}</button>
+                  ? <button className={`nav-drawer-link${activeSection===l.id?' nav-drawer-link--active':''}`} onClick={()=>scrollTo(l.id, l.to)}>{l.l}</button>
                   : <Link className={`nav-drawer-link${loc.pathname===l.to?' nav-drawer-link--active':''}`} to={l.to}>{l.l}</Link>
                 }
               </div>
@@ -465,7 +634,7 @@ function Navbar() {
             {pageLinks.length > 0 && <div className="nav-drawer-sep"><span>Pages</span></div>}
             {pageLinks.map((l)=>(
               <div key={l.to} className="nav-drawer-item">
-                <Link className={`nav-drawer-link${loc.pathname===l.to?' nav-drawer-link--active':''}`} to={l.to}>{l.l}</Link>
+                <Link className={`nav-drawer-link${l.portal?' nav-drawer-link--portal':''}${loc.pathname===l.to?' nav-drawer-link--active':''}`} to={l.to}>{l.l}</Link>
               </div>
             ))}
           </div>
@@ -477,10 +646,38 @@ function Navbar() {
 
 /* ─── DEPT HERO ─────────────────────────────────────────── */
 function DeptHero() {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(()=>{
+    const t = setInterval(()=>setNow(new Date()), 1000)
+    return ()=>clearInterval(t)
+  },[])
+  // HUD clock in Indian Standard Time (UTC+5:30)
+  const hudTime = now.toLocaleTimeString('en-GB', { hour12:false, timeZone:'Asia/Kolkata' })
   return (
     <section className="hero" id="hero">
       <FlyingBirds/>
       <RunningAnimals type="forest"/>
+      <ProwlShadow/>
+
+      {/* Scope HUD overlay */}
+      <div className="scope-hud" aria-hidden="true">
+        <span className="scope-corner scope-corner--tl"/>
+        <span className="scope-corner scope-corner--tr"/>
+        <span className="scope-corner scope-corner--bl"/>
+        <span className="scope-corner scope-corner--br"/>
+        <div className="scope-hud-status">
+          <span className="scope-hud-live"><span className="scope-hud-dot"/>LIVE</span>
+          <span className="scope-hud-time">{hudTime} IST</span>
+          <span className="scope-hud-coord">34.0522° N · 118.2437° W</span>
+        </div>
+        <div className="scope-hud-signal">
+          <span>SIGNAL</span>
+          <div className="scope-hud-bars">
+            {[1,2,3,4,5].map(i => <span key={i} className="scope-hud-bar" style={{animationDelay:`${i*.12}s`}}/>)}
+          </div>
+        </div>
+      </div>
+
       <div className="hero-watermark" aria-hidden="true">
         <span className="hero-watermark-text">SAPR</span>
       </div>
@@ -519,7 +716,7 @@ function DeptHero() {
           initial={{opacity:0,y:14}} animate={{opacity:1,y:0}} transition={{delay:1.1,duration:.6}}>
           {[
             {k:'Commanding Officer', v:'Game Warden Rex Davis (222)'},
-            {k:'Overwatch',          v:'Trooper Eddie'},
+            {k:'Overwatch',          v:'Trooper Eddie Brock (299)'},
             {k:'Jurisdiction',       v:'Statewide — All Fishing & Hunting Zones'},
           ].map((r,i)=>(
             <div key={i}>
@@ -1519,7 +1716,7 @@ function FishingEvidenceSection() {
         {user && (
           <Reveal>
             <div className="fe-admin-bar">
-              <span className="fe-admin-tag">&#9679; {getDisplayName(user.email,userMap)} — {user.email}</span>
+              <span className="fe-admin-tag" title={user.email}>&#9679; {getDisplayName(user.email,userMap)}</span>
               <div className="fe-admin-actions">
                 <button className="fe-admin-signout" onClick={()=>signOut(auth)}>Sign Out</button>
               </div>
@@ -1689,6 +1886,26 @@ function FishingEvidenceSection() {
 /* ─── RECRUITMENT ───────────────────────────────────────── */
 const DEPARTMENTS = ['LSPD','SASP']
 
+// ─── SPAM GATES (public application form) ───────────────
+const SUBMIT_COOLDOWN_MS = 24 * 60 * 60 * 1000        // one submission per device per 24 h
+const MIN_FILL_MS        = 4000                        // humans take ≥ 4 s to fill the form
+
+function getDeviceFingerprint() {
+  // Lightweight, best-effort fingerprint — not cryptographic, just raises the bar for spam.
+  let fp = localStorage.getItem('sapr_fp')
+  if(fp) return fp
+  const parts = [
+    navigator.userAgent || '',
+    navigator.language || '',
+    `${screen.width}x${screen.height}`,
+    Intl.DateTimeFormat().resolvedOptions().timeZone || '',
+    Math.random().toString(36).slice(2,10),
+  ].join('|')
+  fp = btoa(parts).replace(/[^a-zA-Z0-9]/g,'').slice(0,32)
+  try { localStorage.setItem('sapr_fp', fp) } catch { /* storage unavailable */ }
+  return fp
+}
+
 function RecruitmentSection() {
   const [name,    setName]    = useState('')
   const [cid,     setCid]     = useState('')
@@ -1697,9 +1914,11 @@ function RecruitmentSection() {
   const [avail,   setAvail]   = useState('')
   const [why,     setWhy]     = useState('')
   const [discord, setDiscord] = useState('')
+  const [hp,      setHp]      = useState('')          // honeypot: must remain empty
   const [busy,    setBusy]    = useState(false)
   const [done,    setDone]    = useState(false)
   const [err,     setErr]     = useState('')
+  const mountedAt = useRef(Date.now())
 
   // Admin form-open/close control
   const [adminUser,     setAdminUser]     = useState(null)
@@ -1733,19 +1952,65 @@ function RecruitmentSection() {
   const handleSubmit = async e => {
     e.preventDefault(); setErr('')
     if(!name.trim()||!cid.trim()||!dept||!why.trim()||!discord.trim()) return
+
+    // Gate 1: honeypot — bots auto-fill every field.
+    if(hp) { setDone(true); return }                       // silently "succeed" for bots
+
+    // Gate 2: min fill time — submitted in <4 s is almost certainly a bot.
+    if(Date.now() - mountedAt.current < MIN_FILL_MS) {
+      setErr('Please take a moment to review your application before submitting.')
+      return
+    }
+
+    // Gate 3: local cooldown — one submission per device per 24 h.
+    const last = parseInt(localStorage.getItem('sapr_last_submit') || '0', 10)
+    if(last && Date.now() - last < SUBMIT_COOLDOWN_MS) {
+      const hrs = Math.ceil((SUBMIT_COOLDOWN_MS - (Date.now() - last)) / 3_600_000)
+      setErr(`You've already submitted an application recently. Try again in ~${hrs}h.`)
+      return
+    }
+
     setBusy(true)
     try {
+      // Gate 4: server-side dedup on CID and Discord tag.
+      const cidTrim     = cid.trim()
+      const discordTrim = discord.trim()
+      const [cidDup, discordDup] = await Promise.all([
+        getDocs(query(collection(db,'sapr_applications'), where('citizenId','==', cidTrim))),
+        getDocs(query(collection(db,'sapr_applications'), where('discord',  '==', discordTrim))),
+      ])
+      if(!cidDup.empty || !discordDup.empty) {
+        setErr('An application with this Citizen ID or Discord tag already exists. Contact management on Discord if this is a mistake.')
+        setBusy(false); return
+      }
+
+      const fp = getDeviceFingerprint()
       await addDoc(collection(db,'sapr_applications'),{
         name:      name.trim(),
-        citizenId: cid.trim(),
+        citizenId: cidTrim,
         department:dept,
         rank:      rank.trim(),
         availability: avail.trim(),
         why:       why.trim(),
-        discord:   discord.trim(),
+        discord:   discordTrim,
+        status:    'pending',
         tags:      ['pending'],
         submittedAt: serverTimestamp(),
+        fp,
       })
+
+      // Write an audit trail for management review (Gate 5).
+      try {
+        await addDoc(collection(db,'sapr_submissions'), {
+          fp,
+          citizenId: cidTrim,
+          discord:   discordTrim,
+          userAgent: navigator.userAgent?.slice(0,256) || '',
+          submittedAt: serverTimestamp(),
+        })
+      } catch { /* audit write is non-fatal */ }
+
+      try { localStorage.setItem('sapr_last_submit', String(Date.now())) } catch { /* storage unavailable */ }
       setDone(true)
     } catch { setErr('Submission failed — please try again.') }
     finally  { setBusy(false) }
@@ -1842,7 +2107,14 @@ function RecruitmentSection() {
                   <div className="rec-admin-notice">Form is closed to the public — visible to admins only.</div>
                 )}
                 <h3 className="rec-form-title">Expression of Interest — Fill it yourself, keep it real</h3>
-                <form className="rec-form" onSubmit={handleSubmit}>
+                <form className="rec-form" onSubmit={handleSubmit} autoComplete="off">
+                  {/* Honeypot — hidden from humans, filled by bots */}
+                  <div className="rec-hp" aria-hidden="true">
+                    <label>Website
+                      <input tabIndex="-1" autoComplete="off" type="text"
+                        value={hp} onChange={e=>setHp(e.target.value)}/>
+                    </label>
+                  </div>
                   <div className="rec-row">
                     <div className="rec-field">
                       <label className="rec-label">In-Game Name <span className="rec-req">*</span></label>
@@ -1895,38 +2167,64 @@ function RecruitmentSection() {
 /* ─── APPLICATIONS PANEL (management only) ──────────────── */
 const APP_PER_PAGE = 8
 
-const APP_TAGS = [
-  { id:'pending',     label:'Pending',     color:'#f59e0b', bg:'rgba(245,158,11,.13)' },
-  { id:'on_hold',     label:'On Hold',     color:'#a78bfa', bg:'rgba(167,139,250,.13)' },
-  { id:'shortlisted', label:'Shortlisted', color:'#38bdf8', bg:'rgba(56,189,248,.13)'  },
-  { id:'reviewed',    label:'Reviewed',    color:'#10b981', bg:'rgba(16,185,129,.13)'  },
-  { id:'rejected',    label:'Rejected',    color:'#f87171', bg:'rgba(248,113,113,.13)' },
+const STATUS_PIPELINE = [
+  { id:'pending',     label:'Pending',     color:'#94a3b8', bg:'rgba(148,163,184,.13)', group:'active' },
+  { id:'reviewed',    label:'Reviewed',    color:'#f59e0b', bg:'rgba(245,158,11,.13)',  group:'active' },
+  { id:'pass_given',  label:'Pass Given',  color:'#34d399', bg:'rgba(52,211,153,.13)',  group:'active' },
+  { id:'interviewed', label:'Interviewed', color:'#38bdf8', bg:'rgba(56,189,248,.13)',  group:'active' },
+  { id:'shortlisted', label:'Shortlisted', color:'#818cf8', bg:'rgba(129,140,248,.13)', group:'active' },
+  { id:'ranger',      label:'Ranger',      color:'#10b981', bg:'rgba(16,185,129,.15)',  group:'active' },
+  { id:'on_hold',     label:'On Hold',     color:'#a78bfa', bg:'rgba(167,139,250,.13)', group:'hold'   },
+  { id:'rejected',    label:'Rejected',    color:'#f87171', bg:'rgba(248,113,113,.13)', group:'reject' },
 ]
+const ACTIVE_STAGES   = STATUS_PIPELINE.filter(s => s.group === 'active')
+const TERMINAL_STAGES = STATUS_PIPELINE.filter(s => s.group !== 'active')
+const STATUS_PRIORITY = ['ranger','shortlisted','interviewed','pass_given','reviewed','on_hold','rejected','pending']
 
-const getTags = app => app.tags?.length ? app.tags : [app.status || 'pending']
+function getAppStatus(app) {
+  const ids = STATUS_PIPELINE.map(s => s.id)
+  if (app.status && ids.includes(app.status)) return app.status
+  if (app.tags?.length) {
+    const matched = app.tags.filter(t => ids.includes(t))
+    if (matched.length)
+      return matched.sort((a,b) => STATUS_PRIORITY.indexOf(a) - STATUS_PRIORITY.indexOf(b))[0]
+  }
+  return 'pending'
+}
 
-function AppTagChip({ tagId, removable, onRemove }) {
-  const t = APP_TAGS.find(t=>t.id===tagId)
-  if(!t) return null
+function AppStatusChip({ statusId }) {
+  const s = STATUS_PIPELINE.find(s => s.id === statusId) || STATUS_PIPELINE[0]
   return (
-    <span className="app-tag-chip" style={{color:t.color,background:t.bg,borderColor:t.color+'44'}}>
-      {t.label}
-      {removable && <button className="app-tag-remove" onClick={e=>{e.stopPropagation();onRemove(tagId)}}>&#10005;</button>}
+    <span className="app-status-chip" style={{color:s.color, background:s.bg, borderColor:s.color+'44'}}>
+      {s.label}
     </span>
   )
 }
 
-function ApplicationsPanel({ user }) {
+function ApplicationsPanel({ user, role }) {
   const [apps,        setApps]        = useState([])
+  const [userList,    setUserList]    = useState([])
   const [filter,      setFilter]      = useState('all')
   const [search,      setSearch]      = useState('')
   const [appPage,     setAppPage]     = useState(0)
   const [selectedApp, setSelectedApp] = useState(null)
 
+  // Link UI state (scoped to the open modal)
+  const [linkMode,    setLinkMode]    = useState(null)        // 'create' | 'existing' | null
+  const [linkEmail,   setLinkEmail]   = useState('')
+  const [linkPass,    setLinkPass]    = useState('')
+  const [linkExisting,setLinkExisting]= useState('')
+  const [linkRole,    setLinkRole]    = useState('user')        // user | ranger | management | blocked
+  const [linkBusy,    setLinkBusy]    = useState(false)
+  const [linkErr,     setLinkErr]     = useState('')
+  const [linkOk,      setLinkOk]      = useState('')
+
   useEffect(()=>setAppPage(0),[filter, search])
 
+  const mgmt = isManagementUser(user, role)
+
   useEffect(()=>{
-    if(!user || !MANAGEMENT_EMAIL.includes(user.email)) return
+    if(!mgmt) return
     const q = query(collection(db,'sapr_applications'), orderBy('submittedAt','desc'))
     const unsub = onSnapshot(q, snap => {
       const list = snap.docs.map(d=>({ id:d.id, ...d.data() }))
@@ -1935,16 +2233,48 @@ function ApplicationsPanel({ user }) {
       setSelectedApp(prev => prev ? (list.find(a=>a.id===prev.id) || null) : null)
     })
     return unsub
-  },[user])
+  },[mgmt])
 
-  if(!user || !MANAGEMENT_EMAIL.includes(user.email)) return null
+  useEffect(()=>{
+    if(!mgmt) return
+    const unsub = onSnapshot(collection(db,'sapr_users'), snap => {
+      setUserList(snap.docs.map(d=>({ id:d.id, ...d.data() })).filter(u=>u.email))
+    })
+    return unsub
+  },[mgmt])
 
-  const toggleTag = async (appId, tagId) => {
-    const app = apps.find(a=>a.id===appId)
-    const current = getTags(app)
-    const next = current.includes(tagId) ? current.filter(t=>t!==tagId) : [...current, tagId]
-    if(next.length === 0) return
-    await setDoc(doc(db,'sapr_applications',appId), { tags: next }, { merge: true })
+  // Reset link UI whenever the selected app changes / closes
+  useEffect(()=>{
+    setLinkMode(null); setLinkEmail(''); setLinkPass(''); setLinkExisting('')
+    setLinkErr(''); setLinkOk(''); setLinkRole('user')
+  },[selectedApp?.id])
+
+  if(!mgmt) return null
+
+  const setStatus = async (appId, statusId) => {
+    await setDoc(doc(db,'sapr_applications',appId), {
+      status: statusId,
+      tags: [statusId],
+      statusUpdatedAt: serverTimestamp(),
+      statusUpdatedBy: user.email,
+    }, { merge: true })
+
+    // Auto-sync the linked user's role based on pipeline stage.
+    // Only touches linked accounts; unlinked apps just update status.
+    const app = apps.find(a => a.id === appId)
+    if(!app?.linkedUid) return
+
+    let derivedRole = null
+    if(statusId === 'ranger')   derivedRole = 'ranger'
+    if(statusId === 'rejected') derivedRole = 'blocked'
+    if(!derivedRole) return     // intermediate stages leave role unchanged
+
+    await setDoc(doc(db,'sapr_users', app.linkedUid), {
+      role: derivedRole,
+      roleUpdatedAt: serverTimestamp(),
+      roleUpdatedBy: user.email,
+      roleReason:    `auto-synced from pipeline: ${statusId}`,
+    }, { merge: true })
   }
 
   const deleteApp = async id => {
@@ -1952,13 +2282,127 @@ function ApplicationsPanel({ user }) {
     setSelectedApp(null)
   }
 
-  const tagFiltered = filter==='all' ? apps : apps.filter(a=>getTags(a).includes(filter))
-  const counts      = Object.fromEntries([['all',apps.length],...APP_TAGS.map(t=>[t.id, apps.filter(a=>getTags(a).includes(t.id)).length])])
+  // Suggest an email like "firstlast@sapr.gg" from the applicant name
+  const suggestEmail = name => {
+    if(!name) return ''
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g,'')
+    return slug ? `${slug}@sapr.gg` : ''
+  }
+
+  // Write the cross-reference between a user doc and an application
+  const writeLink = async (app, userDocId, userEmail, role) => {
+    await setDoc(doc(db,'sapr_users', userDocId), {
+      role: role || 'user',
+      applicationId: app.id,
+      linkedAt: serverTimestamp(),
+    }, { merge: true })
+    await setDoc(doc(db,'sapr_applications', app.id), {
+      linkedUid: userDocId,
+      linkedEmail: userEmail,
+      linkedAt: serverTimestamp(),
+      linkedBy: user.email,
+    }, { merge: true })
+  }
+
+  const createAndLinkAccount = async () => {
+    if(!selectedApp) return
+    setLinkErr(''); setLinkOk('')
+    const email = linkEmail.trim().toLowerCase()
+    const pass  = linkPass.trim()
+    if(!email || !pass) { setLinkErr('Email and password are required.'); return }
+    if(pass.length < 6) { setLinkErr('Password must be at least 6 characters.'); return }
+    setLinkBusy(true)
+    try {
+      try {
+        await createUserWithEmailAndPassword(secondaryAuth, email, pass)
+        await signOut(secondaryAuth)
+      } catch(authErr) {
+        if(authErr.code==='auth/weak-password')       { setLinkErr('Password must be at least 6 characters.'); setLinkBusy(false); return }
+        if(authErr.code!=='auth/email-already-in-use'){ setLinkErr(authErr.message||'Auth error.'); setLinkBusy(false); return }
+      }
+      const docId = email.replace(/[@.]/g,'_')
+      await setDoc(doc(db,'sapr_users', docId), {
+        email,
+        displayName: selectedApp.name,
+        createdAt:   serverTimestamp(),
+      }, { merge: true })
+      await setDoc(doc(db,'sapr_user_secrets', docId), { password: pass }, { merge: true })
+      await writeLink(selectedApp, docId, email, linkRole)
+      setLinkOk(`Account created and linked — ${email}`)
+      setLinkMode(null); setLinkEmail(''); setLinkPass('')
+    } catch(err) {
+      setLinkErr(err.message||'Failed to create.')
+    } finally { setLinkBusy(false) }
+  }
+
+  const linkExistingAccount = async () => {
+    if(!selectedApp || !linkExisting) return
+    setLinkErr(''); setLinkOk('')
+    setLinkBusy(true)
+    try {
+      const target = userList.find(u => u.id === linkExisting)
+      if(!target) { setLinkErr('User not found.'); setLinkBusy(false); return }
+      await writeLink(selectedApp, target.id, target.email, linkRole)
+      setLinkOk(`Linked to ${target.email}`)
+      setLinkMode(null); setLinkExisting('')
+    } catch(err) {
+      setLinkErr(err.message||'Failed to link.')
+    } finally { setLinkBusy(false) }
+  }
+
+  const unlinkAccount = async () => {
+    if(!selectedApp?.linkedUid) return
+    setLinkErr(''); setLinkOk('')
+    setLinkBusy(true)
+    try {
+      await setDoc(doc(db,'sapr_users', selectedApp.linkedUid), {
+        applicationId: null,
+      }, { merge: true })
+      await setDoc(doc(db,'sapr_applications', selectedApp.id), {
+        linkedUid:   null,
+        linkedEmail: null,
+      }, { merge: true })
+      setLinkOk('Unlinked.')
+    } catch(err) {
+      setLinkErr(err.message||'Failed to unlink.')
+    } finally { setLinkBusy(false) }
+  }
+
+  // Backfill: promote every app at status=ranger to role=ranger on its linked user
+  const [backfillBusy, setBackfillBusy] = useState(false)
+  const [backfillMsg,  setBackfillMsg]  = useState('')
+  const backfillRangers = async () => {
+    if(backfillBusy) return
+    const targets = apps.filter(a => getAppStatus(a) === 'ranger' && a.linkedUid)
+    if(targets.length === 0) { setBackfillMsg('No linked ranger apps to backfill.'); return }
+    if(!confirm(`Promote ${targets.length} linked applicant(s) to role=ranger?`)) return
+    setBackfillBusy(true); setBackfillMsg('')
+    let ok = 0, fail = 0
+    for(const app of targets) {
+      try {
+        await setDoc(doc(db,'sapr_users', app.linkedUid), {
+          role: 'ranger',
+          roleUpdatedAt: serverTimestamp(),
+          roleUpdatedBy: user.email,
+          roleReason:    'backfill from pipeline status=ranger',
+        }, { merge: true })
+        ok++
+      } catch { fail++ }
+    }
+    setBackfillBusy(false)
+    setBackfillMsg(`Backfill complete — ${ok} promoted${fail?`, ${fail} failed`:''}.`)
+  }
+
+  const statusFiltered = filter==='all' ? apps : apps.filter(a=>getAppStatus(a)===filter)
+  const counts         = Object.fromEntries([
+    ['all', apps.length],
+    ...STATUS_PIPELINE.map(s => [s.id, apps.filter(a=>getAppStatus(a)===s.id).length]),
+  ])
   const q           = search.trim().toLowerCase()
-  const filtered    = q ? tagFiltered.filter(a=>
+  const filtered    = q ? statusFiltered.filter(a=>
     [a.name,a.citizenId,a.department,a.rank,a.discord,a.why,a.availability]
       .some(v=>v?.toLowerCase().includes(q))
-  ) : tagFiltered
+  ) : statusFiltered
   const pagedApps   = filtered.slice(appPage*APP_PER_PAGE, (appPage+1)*APP_PER_PAGE)
 
   return (
@@ -1989,35 +2433,44 @@ function ApplicationsPanel({ user }) {
           </div>
         </Reveal>
 
-        {/* Tag filter bar */}
+        {/* Pipeline filter bar */}
         <Reveal delay={.1}>
           <div className="fe-filter-bar" style={{marginBottom:'1.5rem',flexWrap:'wrap'}}>
             <button className={`app-filter-btn${filter==='all'?' app-filter-btn--active':''}`} onClick={()=>setFilter('all')}>
               All <span className="app-filter-count">{counts.all}</span>
             </button>
-            {APP_TAGS.map(t=>(
-              <button key={t.id}
-                className={`app-filter-btn${filter===t.id?' app-filter-btn--active':''}`}
-                style={filter===t.id?{color:t.color,borderColor:t.color,background:t.bg}:{}}
-                onClick={()=>setFilter(t.id)}>
-                {t.label}
-                {counts[t.id]>0 && <span className="app-filter-count">{counts[t.id]}</span>}
+            {STATUS_PIPELINE.map(s=>(
+              <button key={s.id}
+                className={`app-filter-btn${filter===s.id?' app-filter-btn--active':''}`}
+                style={filter===s.id?{color:s.color,borderColor:s.color,background:s.bg}:{}}
+                onClick={()=>setFilter(s.id)}>
+                {s.label}
+                {counts[s.id]>0 && <span className="app-filter-count">{counts[s.id]}</span>}
               </button>
             ))}
+            <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:'.5rem'}}>
+              <button className="fe-add-btn" onClick={backfillRangers} disabled={backfillBusy}
+                title="Promote every linked applicant at status=ranger to role=ranger">
+                {backfillBusy ? 'Backfilling…' : '↻ Backfill Rangers'}
+              </button>
+            </div>
           </div>
+          {backfillMsg && (
+            <p style={{margin:'-.75rem 0 1.25rem',color:'var(--em)',fontSize:'12px'}}>{backfillMsg}</p>
+          )}
         </Reveal>
 
         {filtered.length===0 ? (
-          <div className="fe-empty">No applications{filter!=='all'?` tagged "${APP_TAGS.find(t=>t.id===filter)?.label}"`:''} yet.</div>
+          <div className="fe-empty">No applications{filter!=='all'?` at stage "${STATUS_PIPELINE.find(s=>s.id===filter)?.label}"`:''} yet.</div>
         ) : (
           <>
             <div className="app-list">
               {pagedApps.map((app,i)=>{
-                const tags = getTags(app)
-                const isReviewed = tags.includes('reviewed')
+                const statusId = getAppStatus(app)
+                const isRanger = statusId === 'ranger'
                 return (
                   <Reveal key={app.id} delay={Math.min(i*.06,.4)}>
-                    <div className={`app-card app-card--clickable${isReviewed?' app-card--reviewed':''}`}
+                    <div className={`app-card app-card--clickable${isRanger?' app-card--reviewed':''}`}
                       onClick={()=>setSelectedApp(app)}>
                       <div className="app-card-head">
                         <div className="app-head-left">
@@ -2026,7 +2479,8 @@ function ApplicationsPanel({ user }) {
                         </div>
                         <div className="app-head-right">
                           <div className="app-tag-row">
-                            {tags.map(tid=><AppTagChip key={tid} tagId={tid}/>)}
+                            <AppStatusChip statusId={statusId}/>
+                            {app.linkedUid && <span className="app-link-badge">&#128279; Linked</span>}
                           </div>
                           <span className="app-dept">{app.department}{app.rank?` · ${app.rank}`:''}</span>
                         </div>
@@ -2052,7 +2506,8 @@ function ApplicationsPanel({ user }) {
 
         {/* Application detail modal */}
         {selectedApp && (()=>{
-          const tags = getTags(selectedApp)
+          const statusId   = getAppStatus(selectedApp)
+          const activeIdx  = ACTIVE_STAGES.findIndex(s => s.id === statusId)
           return (
             <div className="app-modal-overlay" onClick={()=>setSelectedApp(null)}>
               <motion.div className="app-modal-box" onClick={e=>e.stopPropagation()}
@@ -2068,22 +2523,121 @@ function ApplicationsPanel({ user }) {
                   <button className="fe-modal-close" onClick={()=>setSelectedApp(null)}>&#10005;</button>
                 </div>
 
-                {/* Tag picker */}
+                {/* Pipeline stepper */}
                 <div className="app-modal-tags-section">
-                  <div className="app-modal-q" style={{marginBottom:'.6rem'}}>Tags</div>
-                  <div className="app-tag-picker">
-                    {APP_TAGS.map(t=>{
-                      const active = tags.includes(t.id)
-                      return (
-                        <button key={t.id}
-                          className={`app-tag-pill${active?' app-tag-pill--active':''}`}
-                          style={active?{color:t.color,background:t.bg,borderColor:t.color+'66'}:{}}
-                          onClick={()=>toggleTag(selectedApp.id, t.id)}>
-                          {active ? '✓ ' : '+ '}{t.label}
-                        </button>
-                      )
-                    })}
+                  <div className="app-modal-q" style={{marginBottom:'.6rem'}}>Pipeline</div>
+                  <div className="app-pipeline">
+                    <div className="app-pipeline-track">
+                      {ACTIVE_STAGES.map((s,idx)=>{
+                        const reached = activeIdx >= 0 && idx <= activeIdx
+                        const current = s.id === statusId
+                        return (
+                          <button key={s.id}
+                            className={`app-pipeline-step${reached?' app-pipeline-step--reached':''}${current?' app-pipeline-step--current':''}`}
+                            style={reached?{color:s.color,borderColor:s.color,background:s.bg}:{}}
+                            onClick={()=>setStatus(selectedApp.id, s.id)}>
+                            <span className="app-pipeline-dot" style={reached?{background:s.color}:{}}/>
+                            <span className="app-pipeline-label">{s.label}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <div className="app-pipeline-terminals">
+                      {TERMINAL_STAGES.map(s=>{
+                        const active = s.id === statusId
+                        return (
+                          <button key={s.id}
+                            className={`app-tag-pill${active?' app-tag-pill--active':''}`}
+                            style={active?{color:s.color,background:s.bg,borderColor:s.color+'66'}:{}}
+                            onClick={()=>setStatus(selectedApp.id, s.id)}>
+                            {active ? '✓ ' : '+ '}{s.label}
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
+                </div>
+
+                {/* Account link */}
+                <div className="app-modal-tags-section">
+                  <div className="app-modal-q" style={{marginBottom:'.6rem'}}>Account</div>
+                  {selectedApp.linkedUid ? (
+                    <div className="app-link-linked">
+                      <div className="app-link-linked-row">
+                        <span className="app-link-linked-icon">&#128279;</span>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div className="app-link-linked-email">{selectedApp.linkedEmail || selectedApp.linkedUid}</div>
+                          <div className="app-link-linked-meta">Linked account · edit role in Users panel</div>
+                        </div>
+                        <button className="app-btn app-btn--del" disabled={linkBusy} onClick={unlinkAccount}>Unlink</button>
+                      </div>
+                      {linkErr && <p className="fe-err" style={{margin:'.4rem 0 0'}}>&#9888; {linkErr}</p>}
+                      {linkOk  && <p className="fe-ok"  style={{margin:'.4rem 0 0'}}>&#10003; {linkOk}</p>}
+                    </div>
+                  ) : (
+                    <div className="app-link-unlinked">
+                      {linkMode === null && (
+                        <div className="app-link-actions">
+                          <button className="app-tag-pill" onClick={()=>{
+                            setLinkMode('create'); setLinkEmail(suggestEmail(selectedApp.name)); setLinkErr(''); setLinkOk('')
+                          }}>+ Create New Account</button>
+                          <button className="app-tag-pill" onClick={()=>{
+                            setLinkMode('existing'); setLinkErr(''); setLinkOk('')
+                          }}>&#8644; Link Existing Account</button>
+                        </div>
+                      )}
+
+                      {linkMode === 'create' && (
+                        <div className="app-link-form">
+                          <input className="fe-input" type="email" placeholder="email@sapr.gg"
+                            value={linkEmail} onChange={e=>setLinkEmail(e.target.value)} autoComplete="off"/>
+                          <input className="fe-input" type="text" placeholder="Password (min 6)"
+                            value={linkPass} onChange={e=>setLinkPass(e.target.value)} autoComplete="off"/>
+                          <select className="fe-input fe-filter-select" value={linkRole} onChange={e=>setLinkRole(e.target.value)}>
+                            <option value="user">Role: User (account only)</option>
+                            <option value="ranger">Role: Ranger</option>
+                            <option value="management">Role: Management</option>
+                            <option value="blocked">Role: Blocked</option>
+                          </select>
+                          <div className="app-link-form-actions">
+                            <button className="app-tag-pill" disabled={linkBusy} onClick={createAndLinkAccount}>
+                              {linkBusy ? 'Creating…' : 'Create & Link'}
+                            </button>
+                            <button className="app-tag-pill" onClick={()=>setLinkMode(null)}>Cancel</button>
+                          </div>
+                          {linkErr && <p className="fe-err" style={{margin:0}}>&#9888; {linkErr}</p>}
+                        </div>
+                      )}
+
+                      {linkMode === 'existing' && (
+                        <div className="app-link-form">
+                          <select className="fe-input fe-filter-select" value={linkExisting} onChange={e=>setLinkExisting(e.target.value)}>
+                            <option value="">— Select existing account —</option>
+                            {userList.map(u=>(
+                              <option key={u.id} value={u.id}>
+                                {u.displayName || u.email} · {u.email}
+                              </option>
+                            ))}
+                          </select>
+                          <select className="fe-input fe-filter-select" value={linkRole} onChange={e=>setLinkRole(e.target.value)}>
+                            <option value="user">Role: User (account only)</option>
+                            <option value="ranger">Role: Ranger</option>
+                            <option value="management">Role: Management</option>
+                            <option value="blocked">Role: Blocked</option>
+                          </select>
+                          <div className="app-link-form-actions">
+                            <button className="app-tag-pill" disabled={linkBusy || !linkExisting} onClick={linkExistingAccount}>
+                              {linkBusy ? 'Linking…' : 'Link'}
+                            </button>
+                            <button className="app-tag-pill" onClick={()=>setLinkMode(null)}>Cancel</button>
+                          </div>
+                          {linkErr && <p className="fe-err" style={{margin:0}}>&#9888; {linkErr}</p>}
+                        </div>
+                      )}
+
+                      {linkOk && <p className="fe-ok" style={{margin:'.5rem 0 0'}}>&#10003; {linkOk}</p>}
+                    </div>
+                  )}
                 </div>
 
                 {/* Form fields */}
@@ -2144,7 +2698,7 @@ function OfficerLeaderboard() {
     : {color:'var(--t3)',borderColor:'var(--ln)',background:'transparent'}
 
   return (
-    <section className="sec sec--dark" style={{paddingTop:'4rem'}}>
+    <section className="sec sec--dark" id="leaderboard" style={{paddingTop:'4rem'}}>
       <div className="sec-inner">
         <Reveal>
           <div className="sec-head">
@@ -2294,7 +2848,7 @@ function MDTSection() {
         {user && (
           <Reveal>
             <div className="fe-admin-bar" style={{marginBottom:'1rem'}}>
-              <span className="fe-admin-tag">&#9679; {getDisplayName(user.email,userMap)} — {user.email}</span>
+              <span className="fe-admin-tag" title={user.email}>&#9679; {getDisplayName(user.email,userMap)}</span>
               <button className="fe-admin-signout" onClick={()=>signOut(auth)}>Sign Out</button>
             </div>
 
@@ -2409,8 +2963,27 @@ function FishingEvidencePage() {
     <div style={{minHeight:'100vh',background:'var(--bg)'}}>
       <Navbar/>
       <div style={{paddingTop:'56px'}}>
+        {/* Fieldwork subnav — sticky quick-jump between sections */}
+        <div className="admin-subnav">
+          <div className="admin-subnav-inner">
+            {[
+              { id:'fishing-evidence', l:'Evidence' },
+              { id:'mdt',              l:'MDT Log' },
+              { id:'leaderboard',      l:'Leaderboard' },
+            ].map(s => (
+              <button key={s.id}
+                className="admin-subnav-link"
+                onClick={()=>document.getElementById(s.id)?.scrollIntoView({behavior:'smooth',block:'start'})}>
+                {s.l}
+              </button>
+            ))}
+          </div>
+        </div>
+        <SectionDiv label="Section 01 — Fishing Evidence"/>
         <FishingEvidenceSection/>
+        <SectionDiv label="Section 02 — MDT Activity Log"/>
         <MDTSection/>
+        <SectionDiv label="Section 03 — Officer Leaderboard"/>
         <OfficerLeaderboard/>
         <Footer/>
       </div>
@@ -2454,7 +3027,26 @@ function ProposalPage() {
 let _introPlayed = false
 
 function MainPage() {
-  const [done, setDone] = useState(_introPlayed)
+  const loc = useLocation()
+  // Intro only plays on a fresh site entry at '/'. Deep-links to /roster,
+  // /hunting etc. skip it, and once played it never replays this session.
+  const [done, setDone] = useState(_introPlayed || loc.pathname !== '/')
+
+  // On mount / path change, scroll to the matching section for /roster, /hunting, etc.
+  useEffect(()=>{
+    if(!done) return
+    const target = HOME_SECTIONS.find(s => s.path === loc.pathname)
+    if(!target) return
+    const t = setTimeout(()=>{
+      if(target.id === 'hero') {
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      } else {
+        document.getElementById(target.id)?.scrollIntoView({ behavior:'smooth', block:'start' })
+      }
+    }, 80)
+    return ()=>clearTimeout(t)
+  },[loc.pathname, done])
+
   return (
     <>
       {!done && <Intro onDone={()=>{ _introPlayed = true; setDone(true) }}/>}
@@ -2476,10 +3068,10 @@ function MainPage() {
 /* ─── INTRO ─────────────────────────────────────────────── */
 function Intro({ onDone }) {
   return (
-    <motion.div initial={{opacity:1}} animate={{opacity:0}} transition={{delay:3.5,duration:.8,ease:'easeOut'}}
-      onAnimationComplete={onDone}
-      style={{position:'fixed',inset:0,zIndex:999999,background:'#04060a',display:'flex',alignItems:'center',justifyContent:'center',pointerEvents:'none',overflow:'hidden'}}>
-      <video src="/cougar.mp4" autoPlay muted playsInline style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+    <motion.div className="intro-overlay"
+      initial={{opacity:1}} animate={{opacity:0}} transition={{delay:3.5,duration:.8,ease:'easeOut'}}
+      onAnimationComplete={onDone}>
+      <video src="/cougar.mp4" autoPlay muted playsInline className="intro-video"/>
     </motion.div>
   )
 }
@@ -2498,7 +3090,7 @@ function JoinSAPRPage() {
 }
 
 /* ─── USER MANAGEMENT PANEL (admin only) ────────────────── */
-function UserManagementPanel({ user }) {
+function UserManagementPanel({ user, role }) {
   const [userList,         setUserList]         = useState([])
   const [secretsMap,       setSecretsMap]       = useState({})
   const [shownPasses,      setShownPasses]      = useState(new Set())
@@ -2515,27 +3107,31 @@ function UserManagementPanel({ user }) {
   const [resetErr,         setResetErr]         = useState('')
   const [resetOk,          setResetOk]          = useState('')
   const [listOpen,         setListOpen]         = useState(false)
+  const [nuRole,           setNuRole]           = useState('user')
+  const [roleBusy,         setRoleBusy]         = useState('')
 
   useEffect(()=>{
     const unsub = onSnapshot(collection(db,'sapr_users'), snap => {
       const list = []
-      snap.docs.forEach(d=>{ const {email,displayName}=d.data(); if(email) list.push({email,displayName}) })
+      snap.docs.forEach(d=>{ const data=d.data(); if(data.email) list.push({ id:d.id, ...data }) })
       setUserList(list)
     })
     return unsub
   },[])
 
+  const mgmt = isManagementUser(user, role)
+
   useEffect(()=>{
-    if(!user || !MANAGEMENT_EMAIL.includes(user.email)) return
+    if(!mgmt) return
     const unsub = onSnapshot(collection(db,'sapr_user_secrets'), snap => {
       const m = {}
       snap.docs.forEach(d=>{ m[d.id] = d.data().password })
       setSecretsMap(m)
     })
     return unsub
-  },[user])
+  },[mgmt])
 
-  if(!user || !MANAGEMENT_EMAIL.includes(user.email)) return null
+  if(!mgmt) return null
 
   const handleCreateUser = async e => {
     e.preventDefault(); setNuErr(''); setNuOk('')
@@ -2553,14 +3149,28 @@ function UserManagementPanel({ user }) {
       await setDoc(doc(db,'sapr_users', docId), {
         email:       nuEmail.trim(),
         displayName: nuName.trim(),
+        role:        nuRole,
         createdAt:   serverTimestamp(),
       })
       await setDoc(doc(db,'sapr_user_secrets', docId), { password: nuPass.trim() })
-      setNuOk(`Saved — ${nuName.trim()} (${nuEmail.trim()})`)
-      setNuEmail(''); setNuPass(''); setNuName('')
+      setNuOk(`Saved — ${nuName.trim()} (${nuEmail.trim()}) · ${nuRole}`)
+      setNuEmail(''); setNuPass(''); setNuName(''); setNuRole('ranger')
     } catch(err) {
       setNuErr(err.message||'Failed to save.')
     } finally { setNuBusy(false) }
+  }
+
+  const handleRoleChange = async (docId, newRole) => {
+    setRoleBusy(docId)
+    try {
+      await setDoc(doc(db,'sapr_users', docId), {
+        role:          newRole,
+        roleUpdatedAt: serverTimestamp(),
+        roleUpdatedBy: user.email,
+      }, { merge: true })
+    } catch(e) {
+      alert(`Failed to update role: ${e.message || e}`)
+    } finally { setRoleBusy('') }
   }
 
   const handleResetPassword = async (email, storedPass) => {
@@ -2598,6 +3208,12 @@ function UserManagementPanel({ user }) {
               <input className="fe-input" placeholder="Display name (e.g. Sgt. Rex Davis)" value={nuName} onChange={e=>setNuName(e.target.value)} required autoComplete="off"/>
               <input className="fe-input" type="email" placeholder="Email address" value={nuEmail} onChange={e=>setNuEmail(e.target.value)} required autoComplete="off"/>
               <input className="fe-input" type="password" placeholder="Password (min 6 chars)" value={nuPass} onChange={e=>setNuPass(e.target.value)} required minLength={6} autoComplete="new-password"/>
+              <select className="fe-input fe-filter-select" value={nuRole} onChange={e=>setNuRole(e.target.value)}>
+                <option value="user">Role: User (account only)</option>
+                <option value="ranger">Role: Ranger</option>
+                <option value="management">Role: Management</option>
+                <option value="blocked">Role: Blocked</option>
+              </select>
               {nuErr && <p className="fe-err">&#9888; {nuErr}</p>}
               {nuOk  && <p className="fe-ok">&#10003; {nuOk}</p>}
               <button className="fe-add-btn" type="submit" disabled={nuBusy}>{nuBusy?'Creating…':'+ Create Account'}</button>
@@ -2615,9 +3231,26 @@ function UserManagementPanel({ user }) {
                 const storedPass = secretsMap[docId]
                 return (
                 <div key={i} className="fe-mgmt-row" style={{flexDirection:'column',alignItems:'stretch',gap:'.35rem'}}>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:'.5rem'}}>
                     <span className="fe-mgmt-name">{u.displayName}</span>
                     <span className="fe-mgmt-email">{u.email}</span>
+                  </div>
+                  <div style={{display:'flex',alignItems:'center',gap:'.5rem',fontSize:'.82rem'}}>
+                    <span style={{color:'#aaa'}}>Role:</span>
+                    <select
+                      className="fe-input fe-filter-select"
+                      style={{flex:'0 0 auto',minWidth:'140px',padding:'.3rem .5rem',fontSize:'.8rem'}}
+                      value={u.role || ''}
+                      disabled={roleBusy===docId}
+                      onChange={e=>handleRoleChange(docId, e.target.value)}>
+                      <option value="">— Unset —</option>
+                      <option value="user">User</option>
+                      <option value="ranger">Ranger</option>
+                      <option value="management">Management</option>
+                      <option value="blocked">Blocked</option>
+                    </select>
+                    {roleBusy===docId && <span style={{color:'var(--t3)'}}>…</span>}
+                    {u.role==='blocked' && <span className="app-status-chip" style={{color:'#f87171',background:'rgba(248,113,113,.13)',borderColor:'rgba(248,113,113,.3)'}}>BLOCKED</span>}
                   </div>
                   <div style={{display:'flex',alignItems:'center',gap:'.5rem',fontSize:'.82rem'}}>
                     <span style={{color:'#aaa'}}>Pass:</span>
@@ -2670,7 +3303,7 @@ function UserManagementPanel({ user }) {
 /* ─── ROSTER MANAGEMENT ─────────────────────────────────── */
 const EDIT_COLS = ['Call Sign', 'CID', 'Name', 'SAPR Rank', 'SASP Rank', 'Dept', 'Status', 'Join Date', 'Section']
 
-function RosterManagementPanel({ user }) {
+function RosterManagementPanel({ user, role }) {
   const [members,    setMembers]    = useState([])
   const [sections,   setSections]   = useState(ROSTER_SECTION_DEFAULT)
   const [rows,       setRows]       = useState({})
@@ -2708,7 +3341,7 @@ function RosterManagementPanel({ user }) {
     return () => { unsubM(); unsubS() }
   }, [])
 
-  if (!user || !MANAGEMENT_EMAIL.includes(user.email)) return null
+  if (!isManagementUser(user, role)) return null
 
   /* ── section helpers ── */
   const writeSections = async (next) => {
@@ -2923,8 +3556,7 @@ function RosterManagementPanel({ user }) {
 
 /* ─── ADMIN PAGE ─────────────────────────────────────────── */
 function AdminPage() {
-  const [user,         setUser]         = useState(null)
-  const [authLoaded,   setAuthLoaded]   = useState(false)
+  const { user, role, authLoaded, justBlocked, clearBlocked } = useAuthWithRole()
   const [email,        setEmail]        = useState('')
   const [pass,         setPass]         = useState('')
   const [loginErr,     setLoginErr]     = useState('')
@@ -2932,11 +3564,6 @@ function AdminPage() {
   const [configLoading,setConfigLoading]= useState(true)
   const [toggling,     setToggling]     = useState(false)
   const [toggleErr,    setToggleErr]    = useState('')
-
-  useEffect(()=>{
-    const unsub = onAuthStateChanged(auth, u => { setUser(u); setAuthLoaded(true) })
-    return unsub
-  },[])
 
   useEffect(()=>{
     const unsub = onSnapshot(doc(db,'sapr_config','recruitment'), snap => {
@@ -2953,6 +3580,8 @@ function AdminPage() {
       setEmail(''); setPass('')
     } catch { setLoginErr('Invalid email or password.') }
   }
+
+  const resolvedRole = effectiveRole(user, role)
 
   const toggleFormOpen = async () => {
     setToggling(true); setToggleErr('')
@@ -2974,31 +3603,43 @@ function AdminPage() {
     <div style={{minHeight:'100vh',background:'var(--bg)'}}>
       <Navbar/>
       <div style={{paddingTop:'56px',display:'flex',alignItems:'center',justifyContent:'center',minHeight:'80vh'}}>
-        <motion.div className="admin-login-card"
-          initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{duration:.3,ease:'easeOut'}}>
-          <div className="admin-login-eyebrow">Management Access</div>
-          <h2 className="admin-login-title">SAPR Admin</h2>
-          <form onSubmit={handleLogin} style={{display:'flex',flexDirection:'column',gap:'.75rem',marginTop:'1.5rem'}}>
-            <input className="fe-input" type="email" placeholder="Email" value={email}
-              onChange={e=>setEmail(e.target.value)} required autoFocus/>
-            <input className="fe-input" type="password" placeholder="Password" value={pass}
-              onChange={e=>setPass(e.target.value)} required/>
-            {loginErr && <p className="fe-err">&#9888; {loginErr}</p>}
-            <button className="fe-add-btn" type="submit">Sign In →</button>
-          </form>
-        </motion.div>
+        {justBlocked ? (
+          <RejectionScreen onDismiss={clearBlocked}/>
+        ) : (
+          <motion.div className="admin-login-card"
+            initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{duration:.3,ease:'easeOut'}}>
+            <div className="admin-login-eyebrow">Management Access</div>
+            <h2 className="admin-login-title">SAPR Admin</h2>
+            <form onSubmit={handleLogin} style={{display:'flex',flexDirection:'column',gap:'.75rem',marginTop:'1.5rem'}}>
+              <input className="fe-input" type="email" placeholder="Email" value={email}
+                onChange={e=>setEmail(e.target.value)} required autoFocus/>
+              <input className="fe-input" type="password" placeholder="Password" value={pass}
+                onChange={e=>setPass(e.target.value)} required/>
+              {loginErr && <p className="fe-err">&#9888; {loginErr}</p>}
+              <button className="fe-add-btn" type="submit">Sign In →</button>
+            </form>
+          </motion.div>
+        )}
       </div>
     </div>
   )
 
-  if (!MANAGEMENT_EMAIL.includes(user.email)) return (
+  // Signed in but not management: redirect rangers to /ranger, deny everyone else
+  if (resolvedRole !== 'management') return (
     <div style={{minHeight:'100vh',background:'var(--bg)'}}>
       <Navbar/>
       <div style={{paddingTop:'56px',display:'flex',alignItems:'center',justifyContent:'center',minHeight:'80vh'}}>
-        <div style={{textAlign:'center'}}>
+        <div style={{textAlign:'center',maxWidth:'420px',padding:'0 1.5rem'}}>
           <div style={{color:'var(--red,#ef4444)',fontSize:'1.75rem',fontWeight:700,marginBottom:'.75rem'}}>Access Denied</div>
-          <div style={{color:'var(--t3)',marginBottom:'1.5rem'}}>This page is restricted to SAPR Management.</div>
-          <button className="app-btn app-btn--del" onClick={()=>signOut(auth)}>Sign Out</button>
+          <div style={{color:'var(--t3)',marginBottom:'1.5rem'}}>
+            {resolvedRole === 'ranger'
+              ? 'This page is for Management only. Head to your Ranger dashboard instead.'
+              : 'This page is restricted to SAPR Management.'}
+          </div>
+          <div style={{display:'flex',gap:'.5rem',justifyContent:'center',flexWrap:'wrap'}}>
+            {resolvedRole === 'ranger' && <Link to="/ranger" className="fe-add-btn">Go to Ranger Portal</Link>}
+            <button className="app-btn app-btn--del" onClick={()=>signOut(auth)}>Sign Out</button>
+          </div>
         </div>
       </div>
     </div>
@@ -3015,8 +3656,28 @@ function AdminPage() {
           <span className="proposal-back-label">SAPR Admin — Management Only</span>
         </div>
 
+        {/* Admin subnav — sticky quick-jump between panels */}
+        <div className="admin-subnav">
+          <div className="admin-subnav-inner">
+            {[
+              { id:'admin-overview',   l:'Overview' },
+              { id:'user-management',  l:'Users' },
+              { id:'applications',     l:'Applications' },
+              { id:'roster-management',l:'Roster' },
+            ].map(s => (
+              <button key={s.id}
+                className="admin-subnav-link"
+                onClick={()=>document.getElementById(s.id)?.scrollIntoView({behavior:'smooth',block:'start'})}>
+                {s.l}
+              </button>
+            ))}
+            <button className="admin-subnav-link admin-subnav-link--end"
+              onClick={()=>signOut(auth)}>Sign Out</button>
+          </div>
+        </div>
+
         {/* Admin header */}
-        <section className="sec" style={{paddingBottom:'2rem'}}>
+        <section className="sec" id="admin-overview" style={{paddingBottom:'2rem'}}>
           <div className="sec-inner">
             <Reveal>
               <div className="sec-head">
@@ -3062,11 +3723,342 @@ function AdminPage() {
           </div>
         </section>
 
-        <UserManagementPanel user={user}/>
-        <RosterManagementPanel user={user}/>
-        <ApplicationsPanel user={user}/>
+        <UserManagementPanel user={user} role={role}/>
+        <RosterManagementPanel user={user} role={role}/>
+        <ApplicationsPanel user={user} role={role}/>
         <Footer/>
       </div>
+    </div>
+  )
+}
+
+/* ─── RANGER POSTS ──────────────────────────────────────── */
+function PostsBoard({ canEdit, authorEmail }) {
+  const [posts,    setPosts]    = useState([])
+  const [title,    setTitle]    = useState('')
+  const [body,     setBody]     = useState('')
+  const [pinned,   setPinned]   = useState(false)
+  const [busy,     setBusy]     = useState(false)
+  const [err,      setErr]      = useState('')
+  const [editing,  setEditing]  = useState(null)   // post id being edited
+
+  useEffect(()=>{
+    const q = query(collection(db,'sapr_posts'), orderBy('createdAt','desc'))
+    const unsub = onSnapshot(q, snap => {
+      setPosts(snap.docs.map(d=>({ id:d.id, ...d.data() })))
+    })
+    return unsub
+  },[])
+
+  const submit = async e => {
+    e.preventDefault(); setErr('')
+    if(!title.trim() || !body.trim()) return
+    setBusy(true)
+    try {
+      if(editing) {
+        await setDoc(doc(db,'sapr_posts', editing), {
+          title: title.trim(), body: body.trim(), pinned,
+          updatedAt: serverTimestamp(), updatedBy: authorEmail,
+        }, { merge: true })
+      } else {
+        await addDoc(collection(db,'sapr_posts'), {
+          title: title.trim(), body: body.trim(), pinned,
+          createdAt: serverTimestamp(), createdBy: authorEmail,
+        })
+      }
+      setTitle(''); setBody(''); setPinned(false); setEditing(null)
+    } catch(e) { setErr(e.message || 'Failed to post.') }
+    finally   { setBusy(false) }
+  }
+
+  const startEdit = p => {
+    setEditing(p.id); setTitle(p.title || ''); setBody(p.body || ''); setPinned(!!p.pinned)
+  }
+  const cancelEdit = () => { setEditing(null); setTitle(''); setBody(''); setPinned(false) }
+  const removePost = async id => {
+    if(!confirm('Delete this post?')) return
+    await deleteDoc(doc(db,'sapr_posts', id))
+  }
+
+  const sortedPosts = [...posts].sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0))
+
+  return (
+    <div className="posts-board">
+      {canEdit && (
+        <form className="posts-editor" onSubmit={submit}>
+          <div className="posts-editor-title">{editing ? 'Edit Post' : 'New Post'}</div>
+          <input className="fe-input" placeholder="Title" value={title} onChange={e=>setTitle(e.target.value)} required/>
+          <textarea className="fe-input posts-textarea" rows="4" placeholder="Body" value={body} onChange={e=>setBody(e.target.value)} required/>
+          <label className="posts-pin-row">
+            <input type="checkbox" checked={pinned} onChange={e=>setPinned(e.target.checked)}/>
+            <span>Pin to top</span>
+          </label>
+          {err && <p className="fe-err">&#9888; {err}</p>}
+          <div style={{display:'flex',gap:'.5rem'}}>
+            <button className="fe-add-btn" type="submit" disabled={busy}>
+              {busy ? 'Saving…' : editing ? 'Save Changes' : '+ Publish Post'}
+            </button>
+            {editing && <button type="button" className="app-tag-pill" onClick={cancelEdit}>Cancel</button>}
+          </div>
+        </form>
+      )}
+
+      {sortedPosts.length === 0 ? (
+        <div className="fe-empty">No posts yet. Check back soon.</div>
+      ) : (
+        <div className="posts-list">
+          {sortedPosts.map(p => (
+            <article key={p.id} className={`post-card${p.pinned?' post-card--pinned':''}`}>
+              <div className="post-card-head">
+                <div className="post-card-title">
+                  {p.pinned && <span className="post-pin">&#128204;</span>}
+                  {p.title}
+                </div>
+                {canEdit && (
+                  <div className="post-card-actions">
+                    <button className="app-tag-pill" onClick={()=>startEdit(p)}>Edit</button>
+                    <button className="app-btn app-btn--del" onClick={()=>removePost(p.id)}>Delete</button>
+                  </div>
+                )}
+              </div>
+              <div className="post-card-body">{p.body}</div>
+              <div className="post-card-meta">
+                {p.createdBy && <span>{p.createdBy}</span>}
+                {p.createdAt?.toDate && <span>· {p.createdAt.toDate().toLocaleString()}</span>}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ─── RANGER PAGE ───────────────────────────────────────── */
+function RangerPage() {
+  const { user, role, authLoaded, justBlocked, clearBlocked } = useAuthWithRole()
+  const [email,    setEmail]    = useState('')
+  const [pass,     setPass]     = useState('')
+  const [loginErr, setLoginErr] = useState('')
+  const [profile,  setProfile]  = useState(null)
+  const [linkedApp,setLinkedApp]= useState(null)
+
+  useEffect(()=>{
+    if(!user) { setProfile(null); setLinkedApp(null); return }
+    const unsub = onSnapshot(doc(db,'sapr_users', userDocId(user.email)), snap => {
+      setProfile(snap.exists() ? { id:snap.id, ...snap.data() } : null)
+    })
+    return unsub
+  },[user])
+
+  useEffect(()=>{
+    if(!profile?.applicationId) { setLinkedApp(null); return }
+    const unsub = onSnapshot(doc(db,'sapr_applications', profile.applicationId), snap => {
+      setLinkedApp(snap.exists() ? { id:snap.id, ...snap.data() } : null)
+    })
+    return unsub
+  },[profile?.applicationId])
+
+  const handleLogin = async e => {
+    e.preventDefault(); setLoginErr('')
+    try {
+      await signInWithEmailAndPassword(auth, email, pass)
+      setEmail(''); setPass('')
+    } catch { setLoginErr('Invalid email or password.') }
+  }
+
+  const resolvedRole = effectiveRole(user, role)
+
+  if (!authLoaded) return (
+    <div style={{minHeight:'100vh',background:'var(--bg)'}}>
+      <Navbar/>
+      <div style={{paddingTop:'56px',display:'flex',alignItems:'center',justifyContent:'center',minHeight:'80vh'}}>
+        <span style={{color:'var(--t3)'}}>Loading…</span>
+      </div>
+    </div>
+  )
+
+  if (!user) return (
+    <div style={{minHeight:'100vh',background:'var(--bg)'}}>
+      <Navbar/>
+      <div style={{paddingTop:'56px',display:'flex',alignItems:'center',justifyContent:'center',minHeight:'80vh'}}>
+        {justBlocked ? (
+          <RejectionScreen onDismiss={clearBlocked}/>
+        ) : (
+          <motion.div className="admin-login-card"
+            initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{duration:.3,ease:'easeOut'}}>
+            <div className="admin-login-eyebrow">Ranger Access</div>
+            <h2 className="admin-login-title">SAPR Ranger Portal</h2>
+            <form onSubmit={handleLogin} style={{display:'flex',flexDirection:'column',gap:'.75rem',marginTop:'1.5rem'}}>
+              <input className="fe-input" type="email" placeholder="Email" value={email}
+                onChange={e=>setEmail(e.target.value)} required autoFocus/>
+              <input className="fe-input" type="password" placeholder="Password" value={pass}
+                onChange={e=>setPass(e.target.value)} required/>
+              {loginErr && <p className="fe-err">&#9888; {loginErr}</p>}
+              <button className="fe-add-btn" type="submit">Sign In →</button>
+            </form>
+          </motion.div>
+        )}
+      </div>
+    </div>
+  )
+
+  if (resolvedRole !== 'ranger' && resolvedRole !== 'management') return (
+    <div style={{minHeight:'100vh',background:'var(--bg)'}}>
+      <Navbar/>
+      <div style={{paddingTop:'56px',display:'flex',alignItems:'center',justifyContent:'center',minHeight:'80vh'}}>
+        <div style={{textAlign:'center',maxWidth:'420px',padding:'0 1.5rem'}}>
+          <div style={{color:'var(--red,#ef4444)',fontSize:'1.75rem',fontWeight:700,marginBottom:'.75rem'}}>Access Denied</div>
+          <div style={{color:'var(--t3)',marginBottom:'1.5rem'}}>
+            Your account isn't associated with the Ranger Portal. If you just submitted an application, you'll receive credentials once reviewed.
+          </div>
+          <button className="app-btn app-btn--del" onClick={()=>signOut(auth)}>Sign Out</button>
+        </div>
+      </div>
+    </div>
+  )
+
+  const displayName = profile?.displayName || linkedApp?.name || user.email
+  const canEdit     = resolvedRole === 'management'
+
+  return (
+    <div style={{minHeight:'100vh',background:'var(--bg)'}}>
+      <Navbar/>
+      <div style={{paddingTop:'56px'}}>
+        <div className="proposal-back-bar">
+          <Link to="/" className="proposal-back-btn">← Back to Site</Link>
+          <span className="proposal-back-label">SAPR Ranger Portal</span>
+        </div>
+
+        {/* Welcome hero */}
+        <section className="sec">
+          <div className="sec-inner">
+            <Reveal>
+              <div className="ranger-hero">
+                <div className="ranger-hero-eyebrow">Duty Status · Active</div>
+                <h1 className="ranger-hero-title">
+                  Welcome, <span className="ranger-hero-name">Ranger {displayName}</span>
+                </h1>
+                <p className="ranger-hero-sub">
+                  San Andreas Park Rangers · {resolvedRole === 'management' ? 'Management' : 'Field Ranger'}
+                </p>
+              </div>
+            </Reveal>
+
+            <Reveal delay={.08}>
+              <div className="ranger-profile-grid">
+                <div className="ranger-profile-card">
+                  <div className="ranger-profile-label">Callsign</div>
+                  <div className="ranger-profile-val">{linkedApp?.rank || profile?.displayName || '—'}</div>
+                </div>
+                <div className="ranger-profile-card">
+                  <div className="ranger-profile-label">Origin Dept</div>
+                  <div className="ranger-profile-val">{linkedApp?.department || '—'}</div>
+                </div>
+                <div className="ranger-profile-card">
+                  <div className="ranger-profile-label">Citizen ID</div>
+                  <div className="ranger-profile-val">{linkedApp?.citizenId || '—'}</div>
+                </div>
+                <div className="ranger-profile-card">
+                  <div className="ranger-profile-label">Role</div>
+                  <div className="ranger-profile-val" style={{textTransform:'capitalize'}}>{resolvedRole}</div>
+                </div>
+              </div>
+            </Reveal>
+
+            <Reveal delay={.12}>
+              <div style={{textAlign:'right',marginTop:'1.25rem'}}>
+                <button className="app-btn app-btn--del" onClick={()=>signOut(auth)}>Sign Out</button>
+              </div>
+            </Reveal>
+          </div>
+        </section>
+
+        {/* Ranger Posts */}
+        <section className="sec sec--dark">
+          <div className="sec-inner">
+            <Reveal>
+              <div className="sec-head">
+                <span className="sec-num" style={{color:'var(--em)'}}>FEED</span>
+                <p className="sec-tag">Ranger Bulletin</p>
+                <SplitReveal text="Announcements & Orders" className="sec-title" delay={.1} stagger={.028}/>
+                <div className="sec-rule"/>
+              </div>
+            </Reveal>
+            <Reveal delay={.08}>
+              <PostsBoard canEdit={canEdit} authorEmail={user.email}/>
+            </Reveal>
+          </div>
+        </section>
+
+        {/* Hunting Log — live Google Sheet */}
+        <section className="sec" id="hunting-log">
+          <div className="sec-inner">
+            <Reveal>
+              <div className="sec-head">
+                <span className="sec-num" style={{color:'var(--gold)'}}>LOG</span>
+                <p className="sec-tag">Field Operations</p>
+                <SplitReveal text="Hunting Log — Live Sheet" className="sec-title" delay={.1} stagger={.028}/>
+                <FadeWords text="Update hunting kills, tags, and incidents directly below. Changes sync instantly for all rangers." className="sec-sub"/>
+                <div className="sec-rule"/>
+              </div>
+            </Reveal>
+            <Reveal delay={.08}>
+              <div className="ranger-sheet-bar">
+                <span className="ranger-sheet-status"><span className="sdot sdot--em"/> Live · auto-saves to Google Sheets</span>
+                <a className="fe-add-btn" href="https://docs.google.com/spreadsheets/d/12IUCLWEUFxP-d4e50UNahn0dzx2xGqfgYX585KonyqQ/edit?gid=148885738#gid=148885738"
+                  target="_blank" rel="noopener noreferrer">Open in new tab ↗</a>
+              </div>
+              <div className="ranger-sheet-frame-wrap">
+                <iframe
+                  className="ranger-sheet-frame"
+                  src="https://docs.google.com/spreadsheets/d/12IUCLWEUFxP-d4e50UNahn0dzx2xGqfgYX585KonyqQ/edit?rm=minimal&gid=148885738#gid=148885738"
+                  title="SAPR Hunting Log"
+                  allow="clipboard-read; clipboard-write"/>
+              </div>
+              <p className="ranger-sheet-hint">
+                &#9432; You must be signed into Google with a whitelisted account to edit. Contact Management if you can't see the sheet.
+              </p>
+            </Reveal>
+          </div>
+        </section>
+
+        <Footer/>
+      </div>
+    </div>
+  )
+}
+
+/* ─── GLOBAL BLOCKED-USER WATCHDOG ──────────────────────── */
+// Runs app-wide: whenever a signed-in user is marked role="blocked" in sapr_users,
+// they're signed out immediately and a rejection toast is shown on every page.
+function BlockedGate() {
+  const [user,    setUser]    = useState(null)
+  const [blocked, setBlocked] = useState(false)
+
+  useEffect(()=>{
+    const unsub = onAuthStateChanged(auth, u => {
+      setUser(u)
+      if(!u) setBlocked(false)
+    })
+    return unsub
+  },[])
+
+  useEffect(()=>{
+    if(!user) return
+    const unsub = onSnapshot(doc(db,'sapr_users', userDocId(user.email)), snap => {
+      if(snap.exists() && snap.data().role === 'blocked') {
+        setBlocked(true)
+        signOut(auth).catch(()=>{})
+      }
+    })
+    return unsub
+  },[user])
+
+  if(!blocked) return null
+  return (
+    <div className="rejection-overlay">
+      <RejectionScreen onDismiss={()=>setBlocked(false)}/>
     </div>
   )
 }
@@ -3074,12 +4066,20 @@ function AdminPage() {
 /* ─── APP ───────────────────────────────────────────────── */
 export default function App() {
   return (
-    <Routes>
-      <Route path="/" element={<MainPage/>}/>
-      <Route path="/fieldwork" element={<FishingEvidencePage/>}/>
-      <Route path="/joinsapr" element={<JoinSAPRPage/>}/>
-      <Route path="/proposal" element={<ProposalPage/>}/>
-      <Route path="/admin" element={<AdminPage/>}/>
-    </Routes>
+    <>
+      <BlockedGate/>
+      <Routes>
+        <Route path="/" element={<MainPage/>}/>
+        <Route path="/roster"  element={<MainPage/>}/>
+        <Route path="/hunting" element={<MainPage/>}/>
+        <Route path="/fishing" element={<MainPage/>}/>
+        <Route path="/map"     element={<MainPage/>}/>
+        <Route path="/fieldwork" element={<FishingEvidencePage/>}/>
+        <Route path="/joinsapr" element={<JoinSAPRPage/>}/>
+        <Route path="/proposal" element={<ProposalPage/>}/>
+        <Route path="/admin" element={<AdminPage/>}/>
+        <Route path="/ranger" element={<RangerPage/>}/>
+      </Routes>
+    </>
   )
 }

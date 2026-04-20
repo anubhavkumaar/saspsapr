@@ -11,7 +11,11 @@
       "Bash(where ffmpeg *)",
       "Bash(winget install *)",
       "Bash(export PATH=\"$PATH:/c/Users/anubh/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-7.1.1-full_build/bin\")",
-      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); v=[s for s in d['streams'] if s['codec_type']=='video'][0]; print\\(f\\\\\"Duration: {v.get\\('duration','?'\\)}s | FPS: {v.get\\('r_frame_rate','?'\\)} | {v.get\\('width'\\)}x{v.get\\('height'\\)}\\\\\"\\)\")"
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); v=[s for s in d['streams'] if s['codec_type']=='video'][0]; print\\(f\\\\\"Duration: {v.get\\('duration','?'\\)}s | FPS: {v.get\\('r_frame_rate','?'\\)} | {v.get\\('width'\\)}x{v.get\\('height'\\)}\\\\\"\\)\")",
+      "Bash(git checkout *)",
+      "Bash(npx --no-install eslint src/App.jsx --no-eslintrc --parser-options=ecmaVersion:2022,sourceType:module,ecmaFeatures:{jsx:true})",
+      "Bash(npx --no-install eslint src/App.jsx)",
+      "Bash(npx --no-install vite build)"
     ]
   }
 }
