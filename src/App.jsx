@@ -6,7 +6,7 @@ import logoRanger from './assets/C1i37hio.png'
 import logoState  from './assets/Ci37h33io.png'
 import { db, auth, firebaseConfig } from './firebase'
 import { collection, addDoc, deleteDoc, doc, setDoc, getDocs, query, where, orderBy, onSnapshot, serverTimestamp } from 'firebase/firestore'
-import { signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, updatePassword } from 'firebase/auth'
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth'
 import { initializeApp, getApps } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
 
@@ -3755,11 +3755,51 @@ function AdminPage() {
   )
 }
 
+/* ─── MEDIA EMBED HELPER ────────────────────────────────── */
+function MediaEmbed({ url }) {
+  if(!url) return null
+  const u = url.trim()
+  // YouTube
+  const yt = u.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([A-Za-z0-9_-]{6,})/)
+  if(yt) return (
+    <div style={{position:'relative',paddingTop:'56.25%',margin:'.6rem 0',borderRadius:'8px',overflow:'hidden',background:'#000'}}>
+      <iframe src={`https://www.youtube.com/embed/${yt[1]}`} title="video"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+        style={{position:'absolute',inset:0,width:'100%',height:'100%',border:0}}/>
+    </div>
+  )
+  // vgy.me — normalise share URLs to direct image, extract id
+  const vgy = u.match(/vgy\.me\/(?:image\/)?([A-Za-z0-9]+)(?:\.[a-z]+)?/i)
+  if(vgy) return (
+    <a href={u} target="_blank" rel="noopener noreferrer" style={{display:'block',margin:'.6rem 0'}}>
+      <img src={`https://i.vgy.me/${vgy[1]}.jpg`} alt="attachment"
+        onError={e=>{ e.currentTarget.src = `https://i.vgy.me/${vgy[1]}.png` }}
+        style={{maxWidth:'100%',borderRadius:'8px',display:'block'}}/>
+    </a>
+  )
+  // Direct image
+  if(/\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(u)) return (
+    <a href={u} target="_blank" rel="noopener noreferrer" style={{display:'block',margin:'.6rem 0'}}>
+      <img src={u} alt="attachment" style={{maxWidth:'100%',borderRadius:'8px',display:'block'}}/>
+    </a>
+  )
+  // Direct video
+  if(/\.(mp4|webm|mov|ogg)(\?|$)/i.test(u)) return (
+    <video src={u} controls style={{maxWidth:'100%',borderRadius:'8px',margin:'.6rem 0',display:'block'}}/>
+  )
+  // Fallback: show as link
+  return (
+    <a href={u} target="_blank" rel="noopener noreferrer" className="fe-add-btn" style={{marginTop:'.6rem',display:'inline-block'}}>Open link ↗</a>
+  )
+}
+
 /* ─── RANGER POSTS ──────────────────────────────────────── */
 function PostsBoard({ canEdit, authorEmail }) {
   const [posts,    setPosts]    = useState([])
   const [title,    setTitle]    = useState('')
   const [body,     setBody]     = useState('')
+  const [mediaUrl, setMediaUrl] = useState('')
   const [pinned,   setPinned]   = useState(false)
   const [busy,     setBusy]     = useState(false)
   const [err,      setErr]      = useState('')
@@ -3780,24 +3820,24 @@ function PostsBoard({ canEdit, authorEmail }) {
     try {
       if(editing) {
         await setDoc(doc(db,'sapr_posts', editing), {
-          title: title.trim(), body: body.trim(), pinned,
+          title: title.trim(), body: body.trim(), mediaUrl: mediaUrl.trim(), pinned,
           updatedAt: serverTimestamp(), updatedBy: authorEmail,
         }, { merge: true })
       } else {
         await addDoc(collection(db,'sapr_posts'), {
-          title: title.trim(), body: body.trim(), pinned,
+          title: title.trim(), body: body.trim(), mediaUrl: mediaUrl.trim(), pinned,
           createdAt: serverTimestamp(), createdBy: authorEmail,
         })
       }
-      setTitle(''); setBody(''); setPinned(false); setEditing(null)
+      setTitle(''); setBody(''); setMediaUrl(''); setPinned(false); setEditing(null)
     } catch(e) { setErr(e.message || 'Failed to post.') }
     finally   { setBusy(false) }
   }
 
   const startEdit = p => {
-    setEditing(p.id); setTitle(p.title || ''); setBody(p.body || ''); setPinned(!!p.pinned)
+    setEditing(p.id); setTitle(p.title || ''); setBody(p.body || ''); setMediaUrl(p.mediaUrl || ''); setPinned(!!p.pinned)
   }
-  const cancelEdit = () => { setEditing(null); setTitle(''); setBody(''); setPinned(false) }
+  const cancelEdit = () => { setEditing(null); setTitle(''); setBody(''); setMediaUrl(''); setPinned(false) }
   const removePost = async id => {
     if(!confirm('Delete this post?')) return
     await deleteDoc(doc(db,'sapr_posts', id))
@@ -3812,6 +3852,7 @@ function PostsBoard({ canEdit, authorEmail }) {
           <div className="posts-editor-title">{editing ? 'Edit Post' : 'New Post'}</div>
           <input className="fe-input" placeholder="Title" value={title} onChange={e=>setTitle(e.target.value)} required/>
           <textarea className="fe-input posts-textarea" rows="4" placeholder="Body" value={body} onChange={e=>setBody(e.target.value)} required/>
+          <input className="fe-input" placeholder="Media URL (YouTube, vgy.me, image/video link — optional)" value={mediaUrl} onChange={e=>setMediaUrl(e.target.value)}/>
           <label className="posts-pin-row">
             <input type="checkbox" checked={pinned} onChange={e=>setPinned(e.target.checked)}/>
             <span>Pin to top</span>
@@ -3845,6 +3886,7 @@ function PostsBoard({ canEdit, authorEmail }) {
                 )}
               </div>
               <div className="post-card-body">{p.body}</div>
+              {p.mediaUrl && <MediaEmbed url={p.mediaUrl}/>}
               <div className="post-card-meta">
                 {p.createdBy && <span>{p.createdBy}</span>}
                 {p.createdAt?.toDate && <span>· {p.createdAt.toDate().toLocaleString('en-GB',{ timeZone:'Asia/Kolkata', hour12:false })} IST</span>}
@@ -3865,6 +3907,42 @@ function RangerPage() {
   const [loginErr, setLoginErr] = useState('')
   const [profile,  setProfile]  = useState(null)
   const [linkedApp,setLinkedApp]= useState(null)
+  const [openPanel,setOpenPanel]= useState(null)   // 'profile' | 'alerts' | null
+  const [alerts,   setAlerts]   = useState([])
+  const [lastSeen, setLastSeen] = useState(() => Number(localStorage.getItem('sapr_alerts_seen') || 0))
+
+  useEffect(()=>{
+    if(!user) { setAlerts([]); return }
+    const q = query(collection(db,'sapr_posts'), orderBy('createdAt','desc'))
+    const unsub = onSnapshot(q, snap => {
+      setAlerts(snap.docs.map(d=>({ id:d.id, ...d.data() })))
+    })
+    return unsub
+  },[user])
+
+  const unreadCount = alerts.filter(a => {
+    const t = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0
+    return t > lastSeen
+  }).length
+
+  const openAlerts = () => {
+    setOpenPanel('alerts')
+    const now = Date.now()
+    localStorage.setItem('sapr_alerts_seen', String(now))
+    setLastSeen(now)
+  }
+
+  useEffect(()=>{
+    if(!openPanel) return
+    const onDown = e => {
+      if(e.target.closest('.rp-popover') || e.target.closest('.proposal-back-bar button')) return
+      setOpenPanel(null)
+    }
+    const onKey = e => { if(e.key === 'Escape') setOpenPanel(null) }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return ()=>{ document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey) }
+  },[openPanel])
 
   useEffect(()=>{
     if(!user) { setProfile(null); setLinkedApp(null); return }
@@ -3948,9 +4026,71 @@ function RangerPage() {
     <div style={{minHeight:'100vh',background:'var(--bg)'}}>
       <Navbar/>
       <div style={{paddingTop:'56px'}}>
-        <div className="proposal-back-bar">
+        <div className="proposal-back-bar" style={{display:'flex',alignItems:'center',gap:'.75rem'}}>
           <Link to="/" className="proposal-back-btn">← Back to Site</Link>
-          <span className="proposal-back-label">SAPR Ranger Portal</span>
+          <span className="proposal-back-label" style={{flex:1}}>SAPR Ranger Portal</span>
+          <div style={{position:'relative'}}>
+            <button type="button"
+              onClick={()=>{ if(openPanel==='alerts') setOpenPanel(null); else openAlerts() }}
+              title="Announcements"
+              style={{position:'relative',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'999px',width:'36px',height:'36px',cursor:'pointer',color:'var(--t1)',fontSize:'1rem',display:'inline-flex',alignItems:'center',justifyContent:'center'}}>
+              <span>🔔</span>
+              {unreadCount > 0 && (
+                <span style={{position:'absolute',top:'-4px',right:'-4px',minWidth:'18px',height:'18px',padding:'0 5px',borderRadius:'999px',background:'var(--red)',color:'#fff',font:'700 10px/18px var(--mono)',textAlign:'center'}}>{unreadCount}</span>
+              )}
+            </button>
+            {openPanel === 'alerts' && (
+              <div className="rp-popover" style={{position:'absolute',top:'calc(100% + 8px)',right:0,width:'min(380px,92vw)',maxHeight:'70vh',overflowY:'auto',background:'var(--bg)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:'12px',boxShadow:'0 14px 40px rgba(0,0,0,0.5)',padding:'.85rem',zIndex:1200}}>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'.6rem'}}>
+                  <div style={{font:'700 13px/1 var(--ui)'}}>🔔 Announcements</div>
+                  <button type="button" onClick={()=>setOpenPanel(null)}
+                    style={{background:'transparent',border:'none',color:'var(--t3)',cursor:'pointer',fontSize:'14px'}}>✕</button>
+                </div>
+                {alerts.length === 0 ? (
+                  <div className="fe-empty" style={{padding:'1rem 0'}}>No announcements yet.</div>
+                ) : (
+                  <div className="posts-list" style={{gap:'.6rem'}}>
+                    {[...alerts].sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0)).map(p=>(
+                      <article key={p.id} className={`post-card${p.pinned?' post-card--pinned':''}`}>
+                        <div className="post-card-head">
+                          <div className="post-card-title">
+                            {p.pinned && <span className="post-pin">&#128204;</span>}
+                            {p.title}
+                          </div>
+                        </div>
+                        <div className="post-card-body">{p.body}</div>
+                        {p.mediaUrl && <MediaEmbed url={p.mediaUrl}/>}
+                        <div className="post-card-meta">
+                          {p.createdBy && <span>{p.createdBy}</span>}
+                          {p.createdAt?.toDate && <span>· {p.createdAt.toDate().toLocaleString('en-GB',{ timeZone:'Asia/Kolkata', hour12:false })} IST</span>}
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <div style={{position:'relative'}}>
+            <button type="button"
+              onClick={()=>setOpenPanel(openPanel==='profile'?null:'profile')}
+              title="My Profile"
+              style={{padding:0,overflow:'hidden',background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'999px',width:'36px',height:'36px',cursor:'pointer',color:'var(--t1)',fontSize:'1rem',display:'inline-flex',alignItems:'center',justifyContent:'center'}}>
+              {resolvePhotoUrl(profile?.photoUrl)
+                ? <img src={resolvePhotoUrl(profile?.photoUrl)} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}} onError={e=>{e.currentTarget.replaceWith(Object.assign(document.createElement('span'),{textContent:'👤'}))}}/>
+                : <span>👤</span>}
+            </button>
+            {openPanel === 'profile' && (
+              <div className="rp-popover" style={{position:'absolute',top:'calc(100% + 8px)',right:0,width:'min(380px,92vw)',maxHeight:'70vh',overflowY:'auto',background:'var(--bg)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:'12px',boxShadow:'0 14px 40px rgba(0,0,0,0.5)',padding:'.85rem',zIndex:1200}}>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'.6rem'}}>
+                  <div style={{font:'700 13px/1 var(--ui)'}}>👤 My Profile</div>
+                  <button type="button" onClick={()=>setOpenPanel(null)}
+                    style={{background:'transparent',border:'none',color:'var(--t3)',cursor:'pointer',fontSize:'14px'}}>✕</button>
+                </div>
+                <ProfileEditor user={user} profile={profile}/>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Welcome hero */}
@@ -3972,7 +4112,7 @@ function RangerPage() {
               <div className="ranger-profile-grid">
                 <div className="ranger-profile-card">
                   <div className="ranger-profile-label">Callsign</div>
-                  <div className="ranger-profile-val">{linkedApp?.rank || profile?.displayName || '—'}</div>
+                  <div className="ranger-profile-val">{profile?.callsign || linkedApp?.rank || '—'}</div>
                 </div>
                 <div className="ranger-profile-card">
                   <div className="ranger-profile-label">Origin Dept</div>
@@ -4048,7 +4188,157 @@ function RangerPage() {
 
         <Footer/>
       </div>
+
     </div>
+  )
+}
+
+/* ─── PHOTO URL RESOLVER ────────────────────────────────── */
+// Turn a vgy.me share link into a direct image URL. Direct URLs pass through.
+function resolvePhotoUrl(raw) {
+  if(!raw) return ''
+  const u = raw.trim()
+  if(/\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(u)) return u
+  const vgy = u.match(/vgy\.me\/(?:image\/)?([A-Za-z0-9]+)/i)
+  if(vgy) return `https://i.vgy.me/${vgy[1]}.jpg`
+  return u
+}
+
+/* ─── PROFILE EDITOR (self-service) ─────────────────────── */
+function ProfileEditor({ user, profile }) {
+  const [name,    setName]    = useState('')
+  const [call,    setCall]    = useState('')
+  const [photo,   setPhoto]   = useState('')
+  const [pwCur,   setPwCur]   = useState('')
+  const [pw1,     setPw1]     = useState('')
+  const [pw2,     setPw2]     = useState('')
+  const [busy,    setBusy]    = useState(false)
+  const [ok,      setOk]      = useState('')
+  const [err,     setErr]     = useState('')
+
+  useEffect(()=>{
+    setName(profile?.displayName || '')
+    setCall(profile?.callsign    || '')
+    setPhoto(profile?.photoUrl   || '')
+  },[profile?.displayName, profile?.callsign, profile?.photoUrl])
+
+  const full    = (profile?.displayName || user.email || '').trim()
+  const surname = full.split(/\s+/).filter(Boolean).pop() || full.split('@')[0]
+  const avatar  = resolvePhotoUrl(photo || profile?.photoUrl)
+
+  const saveProfile = async e => {
+    e.preventDefault(); setErr(''); setOk(''); setBusy(true)
+    try {
+      await setDoc(doc(db,'sapr_users', userDocId(user.email)), {
+        displayName: name.trim(),
+        callsign:    call.trim(),
+        photoUrl:    photo.trim(),
+        email:       user.email,
+        profileUpdatedAt: serverTimestamp(),
+      }, { merge:true })
+      setOk('Profile saved.')
+    } catch(e) { setErr(e.message || 'Failed to save profile.') }
+    finally   { setBusy(false) }
+  }
+
+  const changePassword = async e => {
+    e.preventDefault(); setErr(''); setOk('')
+    if(!pwCur)           return setErr('Enter your current password.')
+    if(pw1.length < 6)   return setErr('New password must be at least 6 characters.')
+    if(pw1 !== pw2)      return setErr('New passwords do not match.')
+    if(pw1 === pwCur)    return setErr('New password must differ from current password.')
+    setBusy(true)
+    try {
+      const cred = EmailAuthProvider.credential(auth.currentUser.email, pwCur)
+      await reauthenticateWithCredential(auth.currentUser, cred)
+      await updatePassword(auth.currentUser, pw1)
+      setOk('Password updated.'); setPwCur(''); setPw1(''); setPw2('')
+    } catch(e) {
+      setErr(e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential'
+        ? 'Current password is incorrect.'
+        : (e.message || 'Failed to update password.'))
+    }
+    finally { setBusy(false) }
+  }
+
+  return (
+    <div className="posts-editor" style={{maxWidth:'560px'}}>
+      <div style={{display:'flex',alignItems:'center',gap:'.75rem',marginBottom:'.9rem'}}>
+        <div style={{width:'56px',height:'56px',borderRadius:'50%',overflow:'hidden',border:'2px solid rgba(63,200,120,0.45)',background:'rgba(255,255,255,0.04)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+          {avatar
+            ? <img src={avatar} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}} onError={e=>{e.currentTarget.style.display='none'}}/>
+            : <span style={{fontSize:'1.4rem'}}>👤</span>}
+        </div>
+        <div style={{lineHeight:1.25}}>
+          <div style={{font:'500 10px/1 var(--mono)',letterSpacing:'1.5px',color:'var(--t3)',textTransform:'uppercase'}}>Welcome</div>
+          <div style={{font:'700 17px/1.1 var(--ui)'}}>Ranger {surname}</div>
+        </div>
+      </div>
+      <form onSubmit={saveProfile} style={{display:'flex',flexDirection:'column',gap:'.6rem'}}>
+        <label style={{font:'500 11px/1 var(--mono)',letterSpacing:'1.5px',color:'var(--t3)',textTransform:'uppercase'}}>Profile Picture — vgy.me or image URL</label>
+        <input className="fe-input" value={photo} onChange={e=>setPhoto(e.target.value)} placeholder="https://vgy.me/image/abcdef  or  https://i.vgy.me/abc.png"/>
+        <label style={{font:'500 11px/1 var(--mono)',letterSpacing:'1.5px',color:'var(--t3)',textTransform:'uppercase',marginTop:'.3rem'}}>Display Name</label>
+        <input className="fe-input" value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Jordan Pike" required/>
+        <label style={{font:'500 11px/1 var(--mono)',letterSpacing:'1.5px',color:'var(--t3)',textTransform:'uppercase',marginTop:'.3rem'}}>Callsign</label>
+        <input className="fe-input" value={call} onChange={e=>setCall(e.target.value)} placeholder="e.g. SAPR-14"/>
+        <button className="fe-add-btn" type="submit" disabled={busy} style={{marginTop:'.4rem'}}>
+          {busy ? 'Saving…' : 'Save Profile'}
+        </button>
+      </form>
+      <form onSubmit={changePassword} style={{display:'flex',flexDirection:'column',gap:'.6rem',marginTop:'1.25rem',paddingTop:'1rem',borderTop:'1px solid rgba(255,255,255,0.08)'}}>
+        <div className="posts-editor-title" style={{marginBottom:'.3rem'}}>Change Password</div>
+        <input className="fe-input" type="password" value={pwCur} onChange={e=>setPwCur(e.target.value)} placeholder="Current password" autoComplete="current-password"/>
+        <input className="fe-input" type="password" value={pw1} onChange={e=>setPw1(e.target.value)} placeholder="New password (6+ chars)" autoComplete="new-password"/>
+        <input className="fe-input" type="password" value={pw2} onChange={e=>setPw2(e.target.value)} placeholder="Confirm new password" autoComplete="new-password"/>
+        <button className="fe-add-btn" type="submit" disabled={busy || !pwCur || !pw1}>Update Password</button>
+      </form>
+      {ok  && <p style={{color:'var(--em)', marginTop:'.75rem',fontSize:'.85rem'}}>✓ {ok}</p>}
+      {err && <p className="fe-err" style={{marginTop:'.75rem'}}>&#9888; {err}</p>}
+    </div>
+  )
+}
+
+/* ─── CORNER ID BADGE (global) ──────────────────────────── */
+function RangerIdBadge() {
+  const { user, role } = useAuthWithRole()
+  const loc = useLocation()
+  const [profile, setProfile] = useState(null)
+  useEffect(()=>{
+    if(!user) { setProfile(null); return }
+    const unsub = onSnapshot(doc(db,'sapr_users', userDocId(user.email)), snap => {
+      setProfile(snap.exists() ? snap.data() : null)
+    })
+    return unsub
+  },[user])
+
+  if(!user) return null
+  if(loc.pathname === '/ranger') return null
+  const resolvedRole = effectiveRole(user, role)
+  if(resolvedRole !== 'ranger' && resolvedRole !== 'management') return null
+
+  const full    = (profile?.displayName || user.email || '').trim()
+  const surname = full.split(/\s+/).filter(Boolean).pop() || full.split('@')[0]
+  const avatar  = resolvePhotoUrl(profile?.photoUrl)
+
+  return (
+    <Link to="/ranger" className="ranger-id-badge" title="Open Ranger Portal"
+      style={{
+        position:'fixed', right:'14px', top:'70px', zIndex:900,
+        display:'flex', alignItems:'center', gap:'.55rem',
+        padding:'.4rem .85rem .4rem .4rem', borderRadius:'999px',
+        background:'rgba(8,16,12,0.9)', border:'1px solid rgba(63,200,120,0.35)',
+        color:'var(--t1)', textDecoration:'none',
+        backdropFilter:'blur(8px)', boxShadow:'0 4px 18px rgba(0,0,0,.35)',
+        font:'600 13px/1 var(--ui)', letterSpacing:'.2px',
+      }}>
+      <span style={{width:'28px',height:'28px',borderRadius:'50%',overflow:'hidden',background:'rgba(63,200,120,0.15)',border:'1px solid rgba(63,200,120,0.35)',display:'inline-flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+        {avatar
+          ? <img src={avatar} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}} onError={e=>{e.currentTarget.style.display='none'}}/>
+          : <span style={{fontSize:'.85rem'}}>👤</span>}
+      </span>
+      <span style={{color:'var(--t3)',font:'500 10px/1 var(--mono)',letterSpacing:'1.5px',textTransform:'uppercase'}}>Welcome</span>
+      <span>Ranger {surname}</span>
+    </Link>
   )
 }
 
@@ -4091,6 +4381,7 @@ export default function App() {
   return (
     <>
       <BlockedGate/>
+      <RangerIdBadge/>
       <Routes>
         <Route path="/" element={<MainPage/>}/>
         <Route path="/roster"  element={<MainPage/>}/>
