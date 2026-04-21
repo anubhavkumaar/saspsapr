@@ -2553,6 +2553,23 @@
 }
 .hl-btn--primary:hover { background: rgba(63,200,120,0.2); }
 
+/* Edit-warning banner */
+.hl-editnote {
+  display: flex;
+  gap: .6rem;
+  align-items: flex-start;
+  padding: .7rem .9rem;
+  margin-bottom: .75rem;
+  border: 1px solid rgba(255,196,61,0.35);
+  background: rgba(255,196,61,0.08);
+  border-radius: 8px;
+  color: var(--t1);
+  font: 400 13px/1.5 var(--ui);
+}
+.hl-editnote__ic { font-size: 15px; line-height: 1.4; }
+.hl-editnote__body b { font-weight: 700; margin-right: .25rem; }
+.hl-editnote a { color: var(--em); text-decoration: underline; font-weight: 600; }
+
 /* Sheet container */
 .hl-sheet {
   position: relative;

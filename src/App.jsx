@@ -4396,7 +4396,7 @@ function BlockedGate() {
 const HUNTING_SHEET_ID  = '12IUCLWEUFxP-d4e50UNahn0dzx2xGqfgYX585KonyqQ'
 const HUNTING_SHEET_GID = '148885738'
 const HUNTING_SHEET_EDIT_URL = `https://docs.google.com/spreadsheets/d/${HUNTING_SHEET_ID}/edit?gid=${HUNTING_SHEET_GID}#gid=${HUNTING_SHEET_GID}`
-const HUNTING_SHEET_EMBED_URL = `https://docs.google.com/spreadsheets/d/${HUNTING_SHEET_ID}/edit?rm=minimal&gid=${HUNTING_SHEET_GID}&range=A1#gid=${HUNTING_SHEET_GID}`
+const HUNTING_SHEET_EMBED_URL = `https://docs.google.com/spreadsheets/d/${HUNTING_SHEET_ID}/edit?rm=minimal&gid=${HUNTING_SHEET_GID}#gid=${HUNTING_SHEET_GID}`
 const HUNTING_SHEET_VIEW_URL  = `https://docs.google.com/spreadsheets/d/${HUNTING_SHEET_ID}/htmlembed?gid=${HUNTING_SHEET_GID}&single=true&widget=false&headers=false&chrome=false`
 
 function HuntingLicenseRegistry({ canEdit = false }) {
@@ -4436,6 +4436,16 @@ function HuntingLicenseRegistry({ canEdit = false }) {
         </div>
       </div>
 
+      {canEdit && (
+        <div className="hl-editnote">
+          <span className="hl-editnote__ic">ℹ️</span>
+          <div className="hl-editnote__body">
+            <b>Can't edit inline?</b> Your browser may be blocking third-party cookies, which Google needs to keep you signed in inside an iframe.
+            Use <a href={HUNTING_SHEET_EDIT_URL} target="_blank" rel="noopener noreferrer">Open in Sheets ↗</a> — it opens in a new tab with full editing.
+          </div>
+        </div>
+      )}
+
       <div className={'hl-sheet' + (fs ? ' hl-sheet--fs' : '')}>
         {fs && (
           <button type="button" onClick={()=>setFs(false)} aria-label="Exit fullscreen" className="hl-sheet__exit">✕ Exit Fullscreen</button>
@@ -4445,8 +4455,8 @@ function HuntingLicenseRegistry({ canEdit = false }) {
           className="hl-sheet__frame"
           src={canEdit ? HUNTING_SHEET_EMBED_URL : HUNTING_SHEET_VIEW_URL}
           title="SAPR Hunting License Registry"
-          loading="lazy"
-          allow="clipboard-read; clipboard-write"/>
+          referrerPolicy="origin"
+          allow="clipboard-read; clipboard-write; autoplay"/>
       </div>
 
       <div className="hl-registry__tips">
@@ -4455,8 +4465,8 @@ function HuntingLicenseRegistry({ canEdit = false }) {
         <div className="hl-tip">
           <b>🔐 Access</b>
           <span>{canEdit
-            ? 'Sign in with a whitelisted Google account to edit. Contact Management if the sheet is blank.'
-            : 'Read-only public view. Rangers and Management can edit from the Ranger Portal.'}</span>
+            ? 'Sign in to Google with a whitelisted account. If editing is disabled here, use "Open in Sheets" above — browser cookie policies can block iframe auth.'
+            : 'Read-only public view. Rangers and Management can edit via "Open in Sheets".'}</span>
         </div>
       </div>
     </section>
@@ -4494,13 +4504,11 @@ function HuntingLicensesPage() {
     </div>
   )
 
-  const resolvedRole = effectiveRole(user, role)
-  const canEdit = resolvedRole === 'ranger' || resolvedRole === 'management'
   return (
     <div style={{minHeight:'100vh',background:'var(--bg)'}}>
       <Navbar/>
       <div style={{paddingTop:'56px'}}>
-        <HuntingLicenseRegistry canEdit={canEdit}/>
+        <HuntingLicenseRegistry canEdit={true}/>
         <Footer/>
       </div>
     </div>
