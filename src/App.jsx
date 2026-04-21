@@ -458,12 +458,53 @@ function Navbar() {
   const [sc,  setSc]  = useState(false)
   const [open,setOpen]= useState(false)
   const [activeSection, setActiveSection] = useState('')
+  const [navProfile, setNavProfile] = useState(null)
   const { user, role } = useAuthWithRole()
   const resolvedRole = effectiveRole(user, role)
   const loc     = useLocation()
   const navigate = useNavigate()
   const onHome   = isHomePath(loc.pathname)
   const brandClickCount = useRef(0)
+
+  useEffect(()=>{
+    if(!user) { setNavProfile(null); return }
+    const unsub = onSnapshot(doc(db,'sapr_users', userDocId(user.email)), snap => {
+      setNavProfile(snap.exists() ? snap.data() : null)
+    })
+    return unsub
+  },[user])
+
+  const isRangerOrMgmt = resolvedRole === 'ranger' || resolvedRole === 'management'
+  const navSurname = (user && isRangerOrMgmt)
+    ? (()=>{ const f=(navProfile?.displayName||user.email||'').trim(); return f.split(/\s+/).filter(Boolean).pop()||f.split('@')[0] })()
+    : null
+  const navAvatar = (user && isRangerOrMgmt) ? resolvePhotoUrl(navProfile?.photoUrl) : null
+
+  const [chipOpen,   setChipOpen]   = useState(false)
+  const [loginEmail, setLoginEmail] = useState('')
+  const [loginPass,  setLoginPass]  = useState('')
+  const [loginErr,   setLoginErr]   = useState('')
+  const [loginBusy,  setLoginBusy]  = useState(false)
+  const chipRef = useRef(null)
+
+  useEffect(()=>{
+    if(!chipOpen) return
+    const onDown = e => { if(chipRef.current && !chipRef.current.contains(e.target)) setChipOpen(false) }
+    const onKey  = e => { if(e.key==='Escape') setChipOpen(false) }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown',   onKey)
+    return ()=>{ document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey) }
+  },[chipOpen])
+
+  const handleNavLogin = async e => {
+    e.preventDefault(); setLoginErr(''); setLoginBusy(true)
+    try {
+      await signInWithEmailAndPassword(auth, loginEmail, loginPass)
+      setLoginEmail(''); setLoginPass(''); setChipOpen(false)
+    } catch { setLoginErr('Invalid email or password.') }
+    finally { setLoginBusy(false) }
+  }
+
   const brandClickTimer = useRef(null)
 
   const handleBrandClick = () => {
@@ -624,6 +665,71 @@ function Navbar() {
         ))}
       </ul>
 
+      {/* Auth chip — desktop */}
+      <div style={{position:'relative'}} ref={chipRef}>
+        {!user ? (
+          /* ── Not signed in: Sign In button ── */
+          <button type="button" className={`nav-ranger-chip${chipOpen?' nav-ranger-chip--open':''}`}
+            onClick={()=>setChipOpen(v=>!v)}>
+            <span className="nav-ranger-chip__avatar"><span>🔒</span></span>
+            <span className="nav-ranger-chip__text">
+              <span className="nav-ranger-chip__name">Sign In</span>
+            </span>
+            <span className="nav-ranger-chip__caret">{chipOpen ? '▲' : '▼'}</span>
+          </button>
+        ) : (
+          /* ── Signed in: profile chip ── */
+          <button type="button" className={`nav-ranger-chip${chipOpen?' nav-ranger-chip--open':''}`}
+            onClick={()=>setChipOpen(v=>!v)}>
+            <span className="nav-ranger-chip__avatar">
+              {navAvatar
+                ? <img src={navAvatar} alt="" onError={e=>{e.currentTarget.style.display='none'}}/>
+                : <span>👤</span>}
+            </span>
+            <span className="nav-ranger-chip__text">
+              {isRangerOrMgmt
+                ? <><span className="nav-ranger-chip__label">Ranger</span><span className="nav-ranger-chip__name">{navSurname}</span></>
+                : <span className="nav-ranger-chip__name">{(user.email||'').split('@')[0]}</span>}
+            </span>
+            <span className="nav-ranger-chip__caret">{chipOpen ? '▲' : '▼'}</span>
+          </button>
+        )}
+
+        {chipOpen && (
+          <div className="nav-profile-popover">
+            {!user ? (
+              /* Login form */
+              <form onSubmit={handleNavLogin} style={{display:'flex',flexDirection:'column',gap:'.65rem'}}>
+                <div style={{font:'700 13px/1 var(--ui)',marginBottom:'.15rem'}}>🔒 Sign In</div>
+                <input className="fe-input" type="email" placeholder="Email" value={loginEmail}
+                  onChange={e=>setLoginEmail(e.target.value)} required autoFocus/>
+                <input className="fe-input" type="password" placeholder="Password" value={loginPass}
+                  onChange={e=>setLoginPass(e.target.value)} required/>
+                {loginErr && <p className="fe-err" style={{margin:0}}>⚠ {loginErr}</p>}
+                <button className="fe-add-btn" type="submit" disabled={loginBusy}>
+                  {loginBusy ? 'Signing in…' : 'Sign In →'}
+                </button>
+              </form>
+            ) : (
+              /* Profile editor + logout */
+              <>
+                {isRangerOrMgmt && <ProfileEditor user={user} profile={navProfile} resolvedRole={resolvedRole}/>}
+                {!isRangerOrMgmt && (
+                  <div style={{padding:'.25rem 0 .75rem',borderBottom:'1px solid rgba(255,255,255,0.08)',marginBottom:'.75rem'}}>
+                    <div style={{font:'500 10px/1 var(--mono)',letterSpacing:'1.5px',color:'var(--t3)',textTransform:'uppercase'}}>Signed in as</div>
+                    <div style={{font:'600 14px/1.3 var(--ui)',marginTop:'.3rem',wordBreak:'break-all'}}>{user.email}</div>
+                  </div>
+                )}
+                <button type="button" className="fe-add-btn" onClick={()=>{ signOut(auth); setChipOpen(false) }}
+                  style={{background:'rgba(239,68,68,0.12)',border:'1px solid rgba(239,68,68,0.35)',color:'#f87171',marginTop: isRangerOrMgmt ? '1rem' : 0}}>
+                  Sign Out
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Hamburger button */}
       <button className="nav-burger" onClick={()=>setOpen(v=>!v)} aria-label="Menu">
         <span className={`burger-line ${open?'burger-line--1':''}`}/>
@@ -635,6 +741,20 @@ function Navbar() {
       {open && (
         <div className="nav-drawer" onClick={()=>setOpen(false)}>
           <div className="nav-drawer-inner" onClick={e=>e.stopPropagation()}>
+            {showBadge && (
+              <Link to="/ranger" className="nav-drawer-profile" onClick={()=>setOpen(false)}>
+                <span className="nav-drawer-profile__avatar">
+                  {navAvatar
+                    ? <img src={navAvatar} alt="" onError={e=>{e.currentTarget.style.display='none'}}/>
+                    : <span>👤</span>}
+                </span>
+                <span className="nav-drawer-profile__info">
+                  <span className="nav-drawer-profile__role">Park Ranger</span>
+                  <span className="nav-drawer-profile__name">Ranger {navSurname}</span>
+                </span>
+                <span className="nav-drawer-profile__arrow">→</span>
+              </Link>
+            )}
             {scrollLinks.map((l)=>(
               <div key={l.id||l.to} className="nav-drawer-item">
                 {l.type==='scroll'
@@ -3137,7 +3257,6 @@ function UserManagementPanel({ user, role }) {
   const [nuOk,             setNuOk]             = useState('')
   const [resetTarget,      setResetTarget]      = useState(null)
   const [resetPass,        setResetPass]        = useState('')
-  const [resetCurrentPass, setResetCurrentPass] = useState('')
   const [resetBusy,        setResetBusy]        = useState(false)
   const [resetErr,         setResetErr]         = useState('')
   const [resetOk,          setResetOk]          = useState('')
@@ -3209,16 +3328,15 @@ function UserManagementPanel({ user, role }) {
   }
 
   const handleResetPassword = async (email, storedPass) => {
-    const authPass = storedPass || resetCurrentPass.trim()
-    if(!resetPass.trim() || !authPass) return
+    if(!resetPass.trim() || !storedPass) return
     setResetBusy(true); setResetErr(''); setResetOk('')
     try {
-      await signInWithEmailAndPassword(secondaryAuth, email, authPass)
+      await signInWithEmailAndPassword(secondaryAuth, email, storedPass)
       await updatePassword(secondaryAuth.currentUser, resetPass.trim())
       await signOut(secondaryAuth)
       await setDoc(doc(db,'sapr_user_secrets', email.replace(/[@.]/g,'_')), { password: resetPass.trim() }, { merge: true })
       setResetOk('Password updated.')
-      setResetTarget(null); setResetPass(''); setResetCurrentPass('')
+      setResetTarget(null); setResetPass('')
     } catch(err) {
       setResetErr(err.message||'Failed to reset.')
     } finally { setResetBusy(false) }
@@ -3302,19 +3420,20 @@ function UserManagementPanel({ user, role }) {
                   {resetTarget===u.email && (
                     <>
                       {!storedPass && (
-                        <input className="fe-input" type="password" placeholder="Current password (required)" value={resetCurrentPass}
-                          onChange={e=>setResetCurrentPass(e.target.value)} autoComplete="current-password"/>
+                        <p className="fe-err" style={{margin:0}}>&#9888; No stored password for this account. Ask the user to reset via their profile.</p>
                       )}
-                      <div style={{display:'flex',gap:'.4rem'}}>
-                        <input className="fe-input" type="password" placeholder="New password (min 6)" value={resetPass}
-                          onChange={e=>setResetPass(e.target.value)} minLength={6} autoComplete="new-password" style={{flex:1}}/>
-                        <button className="fe-mgmt-btn fe-mgmt-btn--save"
-                          disabled={resetBusy||resetPass.length<6||(!storedPass&&!resetCurrentPass.trim())}
-                          onClick={()=>handleResetPassword(u.email, storedPass)}>
-                          {resetBusy?'…':'Save'}
-                        </button>
-                        <button className="fe-mgmt-btn" onClick={()=>setResetTarget(null)}>Cancel</button>
-                      </div>
+                      {storedPass && (
+                        <div style={{display:'flex',gap:'.4rem'}}>
+                          <input className="fe-input" type="password" placeholder="New password (min 6)" value={resetPass}
+                            onChange={e=>setResetPass(e.target.value)} minLength={6} autoComplete="new-password" style={{flex:1}}/>
+                          <button className="fe-mgmt-btn fe-mgmt-btn--save"
+                            disabled={resetBusy||resetPass.length<6}
+                            onClick={()=>handleResetPassword(u.email, storedPass)}>
+                            {resetBusy?'…':'Save'}
+                          </button>
+                          <button className="fe-mgmt-btn" onClick={()=>setResetTarget(null)}>Cancel</button>
+                        </div>
+                      )}
                       {resetErr && <p className="fe-err" style={{margin:0}}>&#9888; {resetErr}</p>}
                       {resetOk  && <p className="fe-ok"  style={{margin:0}}>&#10003; {resetOk}</p>}
                     </>
@@ -4100,7 +4219,7 @@ function RangerPage() {
                   <button type="button" onClick={()=>setOpenPanel(null)}
                     style={{background:'transparent',border:'none',color:'var(--t3)',cursor:'pointer',fontSize:'14px'}}>✕</button>
                 </div>
-                <ProfileEditor user={user} profile={profile}/>
+                <ProfileEditor user={user} profile={profile} resolvedRole={resolvedRole}/>
               </div>
             )}
           </div>
@@ -4216,7 +4335,7 @@ function resolvePhotoUrl(raw) {
 }
 
 /* ─── PROFILE EDITOR (self-service) ─────────────────────── */
-function ProfileEditor({ user, profile }) {
+function ProfileEditor({ user, profile, resolvedRole }) {
   const [name,    setName]    = useState('')
   const [call,    setCall]    = useState('')
   const [photo,   setPhoto]   = useState('')
@@ -4226,6 +4345,7 @@ function ProfileEditor({ user, profile }) {
   const [busy,    setBusy]    = useState(false)
   const [ok,      setOk]      = useState('')
   const [err,     setErr]     = useState('')
+  const [showPw,  setShowPw]  = useState(false)
 
   useEffect(()=>{
     setName(profile?.displayName || '')
@@ -4254,10 +4374,10 @@ function ProfileEditor({ user, profile }) {
 
   const changePassword = async e => {
     e.preventDefault(); setErr(''); setOk('')
-    if(!pwCur)           return setErr('Enter your current password.')
-    if(pw1.length < 6)   return setErr('New password must be at least 6 characters.')
-    if(pw1 !== pw2)      return setErr('New passwords do not match.')
-    if(pw1 === pwCur)    return setErr('New password must differ from current password.')
+    if(!pwCur)         return setErr('Enter your current password.')
+    if(pw1.length < 6) return setErr('New password must be at least 6 characters.')
+    if(pw1 !== pw2)    return setErr('New passwords do not match.')
+    if(pw1 === pwCur)  return setErr('New password must differ from current password.')
     setBusy(true)
     try {
       const cred = EmailAuthProvider.credential(auth.currentUser.email, pwCur)
@@ -4301,62 +4421,33 @@ function ProfileEditor({ user, profile }) {
           {busy ? 'Saving…' : 'Save Profile'}
         </button>
       </form>
-      <form onSubmit={changePassword} style={{display:'flex',flexDirection:'column',gap:'.6rem',marginTop:'1.25rem',paddingTop:'1rem',borderTop:'1px solid rgba(255,255,255,0.08)'}}>
-        <div className="posts-editor-title" style={{marginBottom:'.3rem'}}>Change Password</div>
-        <input className="fe-input" type="password" value={pwCur} onChange={e=>setPwCur(e.target.value)} placeholder="Current password" autoComplete="current-password"/>
-        <input className="fe-input" type="password" value={pw1} onChange={e=>setPw1(e.target.value)} placeholder="New password (6+ chars)" autoComplete="new-password"/>
-        <input className="fe-input" type="password" value={pw2} onChange={e=>setPw2(e.target.value)} placeholder="Confirm new password" autoComplete="new-password"/>
-        <button className="fe-add-btn" type="submit" disabled={busy || !pwCur || !pw1}>Update Password</button>
-      </form>
+      <div style={{marginTop:'1.25rem',paddingTop:'1rem',borderTop:'1px solid rgba(255,255,255,0.08)'}}>
+        {!showPw ? (
+          <button type="button" className="fe-add-btn"
+            style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.12)',color:'var(--t1)'}}
+            onClick={()=>setShowPw(true)}>
+            🔑 Reset Password
+          </button>
+        ) : (
+          <form onSubmit={changePassword} style={{display:'flex',flexDirection:'column',gap:'.6rem'}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <div className="posts-editor-title" style={{margin:0}}>Change Password</div>
+              <button type="button" onClick={()=>{ setShowPw(false); setPwCur(''); setPw1(''); setPw2(''); setErr('') }}
+                style={{background:'none',border:'none',color:'var(--t3)',cursor:'pointer',fontSize:'14px'}}>✕</button>
+            </div>
+            <input className="fe-input" type="password" value={pwCur} onChange={e=>setPwCur(e.target.value)} placeholder="Current password" autoComplete="current-password"/>
+            <input className="fe-input" type="password" value={pw1}   onChange={e=>setPw1(e.target.value)}   placeholder="New password (6+ chars)" autoComplete="new-password"/>
+            <input className="fe-input" type="password" value={pw2}   onChange={e=>setPw2(e.target.value)}   placeholder="Confirm new password" autoComplete="new-password"/>
+            <button className="fe-add-btn" type="submit" disabled={busy || !pwCur || !pw1}>Update Password</button>
+          </form>
+        )}
+      </div>
       {ok  && <p style={{color:'var(--em)', marginTop:'.75rem',fontSize:'.85rem'}}>✓ {ok}</p>}
       {err && <p className="fe-err" style={{marginTop:'.75rem'}}>&#9888; {err}</p>}
     </div>
   )
 }
 
-/* ─── CORNER ID BADGE (global) ──────────────────────────── */
-function RangerIdBadge() {
-  const { user, role } = useAuthWithRole()
-  const loc = useLocation()
-  const [profile, setProfile] = useState(null)
-  useEffect(()=>{
-    if(!user) { setProfile(null); return }
-    const unsub = onSnapshot(doc(db,'sapr_users', userDocId(user.email)), snap => {
-      setProfile(snap.exists() ? snap.data() : null)
-    })
-    return unsub
-  },[user])
-
-  if(!user) return null
-  if(loc.pathname === '/ranger') return null
-  const resolvedRole = effectiveRole(user, role)
-  if(resolvedRole !== 'ranger' && resolvedRole !== 'management') return null
-
-  const full    = (profile?.displayName || user.email || '').trim()
-  const surname = full.split(/\s+/).filter(Boolean).pop() || full.split('@')[0]
-  const avatar  = resolvePhotoUrl(profile?.photoUrl)
-
-  return (
-    <Link to="/ranger" className="ranger-id-badge" title="Open Ranger Portal"
-      style={{
-        position:'fixed', right:'14px', top:'70px', zIndex:900,
-        display:'flex', alignItems:'center', gap:'.55rem',
-        padding:'.4rem .85rem .4rem .4rem', borderRadius:'999px',
-        background:'rgba(8,16,12,0.9)', border:'1px solid rgba(63,200,120,0.35)',
-        color:'var(--t1)', textDecoration:'none',
-        backdropFilter:'blur(8px)', boxShadow:'0 4px 18px rgba(0,0,0,.35)',
-        font:'600 13px/1 var(--ui)', letterSpacing:'.2px',
-      }}>
-      <span style={{width:'28px',height:'28px',borderRadius:'50%',overflow:'hidden',background:'rgba(63,200,120,0.15)',border:'1px solid rgba(63,200,120,0.35)',display:'inline-flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-        {avatar
-          ? <img src={avatar} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}} onError={e=>{e.currentTarget.style.display='none'}}/>
-          : <span style={{fontSize:'.85rem'}}>👤</span>}
-      </span>
-      <span style={{color:'var(--t3)',font:'500 10px/1 var(--mono)',letterSpacing:'1.5px',textTransform:'uppercase'}}>Welcome</span>
-      <span>Ranger {surname}</span>
-    </Link>
-  )
-}
 
 /* ─── GLOBAL BLOCKED-USER WATCHDOG ──────────────────────── */
 // Runs app-wide: whenever a signed-in user is marked role="blocked" in sapr_users,
@@ -4402,12 +4493,16 @@ const HUNTING_SHEET_VIEW_URL  = `https://docs.google.com/spreadsheets/d/${HUNTIN
 function HuntingLicenseRegistry({ canEdit = false }) {
   const [fs,  setFs]  = useState(false)
   const [key, setKey] = useState(0)
+
   useEffect(() => {
     if(!fs) return
     const onKey = e => { if(e.key === 'Escape') setFs(false) }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [fs])
+
+  const lockScroll   = () => { document.body.style.overflow = 'hidden' }
+  const unlockScroll = () => { document.body.style.overflow = '' }
 
   return (
     <section className="hl-registry" id="hunting-log">
@@ -4446,7 +4541,8 @@ function HuntingLicenseRegistry({ canEdit = false }) {
         </div>
       )}
 
-      <div className={'hl-sheet' + (fs ? ' hl-sheet--fs' : '')}>
+      <div className={'hl-sheet' + (fs ? ' hl-sheet--fs' : '')}
+        onMouseEnter={lockScroll} onMouseLeave={unlockScroll}>
         {fs && (
           <button type="button" onClick={()=>setFs(false)} aria-label="Exit fullscreen" className="hl-sheet__exit">✕ Exit Fullscreen</button>
         )}
@@ -4520,7 +4616,6 @@ export default function App() {
   return (
     <>
       <BlockedGate/>
-      <RangerIdBadge/>
       <Routes>
         <Route path="/" element={<MainPage/>}/>
         <Route path="/roster"  element={<MainPage/>}/>
