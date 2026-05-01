@@ -2127,18 +2127,8 @@ function RecruitmentSection() {
 
     setBusy(true)
     try {
-      // Gate 4: server-side dedup on CID and Discord tag.
       const cidTrim     = cid.trim()
       const discordTrim = discord.trim()
-      const [cidDup, discordDup] = await Promise.all([
-        getDocs(query(collection(db,'sapr_applications'), where('citizenId','==', cidTrim))),
-        getDocs(query(collection(db,'sapr_applications'), where('discord',  '==', discordTrim))),
-      ])
-      if(!cidDup.empty || !discordDup.empty) {
-        setErr('An application with this Citizen ID or Discord tag already exists. Contact management on Discord if this is a mistake.')
-        setBusy(false); return
-      }
-
       const fp = getDeviceFingerprint()
       await addDoc(collection(db,'sapr_applications'),{
         name:      name.trim(),
