@@ -2856,18 +2856,7 @@ function PlateWindow({ m, large, src }) {
 }
 
 function PersonnelPlate({ m }) {
-  const vacant = isVacant(m)
-  const name   = (m.name || '').trim()
-  // A reserved badge has nothing to open, so it is a plate and not a control.
-  if (vacant) {
-    return (
-      <li className="plate plate--vacant">
-        <PlateWindow m={m}/>
-        <p className="plate-name">Unassigned</p>
-        <p className="plate-rank">{rosterRank(m) || '—'}</p>
-      </li>
-    )
-  }
+  const name = (m.name || '').trim()
   return (
     <li className="plate">
       <Link to={`/${encodeURIComponent(badgeNumber(m))}`}
@@ -3079,8 +3068,21 @@ function PersonnelBoard() {
                   <span className="plate-group-count">{g.members.length}</span>
                 </div>
                 <ul className="plate-grid">
-                  {g.members.map((m, i) => <PersonnelPlate key={m.id || i} m={m}/>)}
+                  {g.members.filter(m => !isVacant(m)).map((m, i) => (
+                    <PersonnelPlate key={m.id || i} m={m}/>
+                  ))}
                 </ul>
+                {g.members.some(isVacant) && (
+                  <p className="plate-open">
+                    <span className="plate-open-k">Open</span>
+                    {g.members.filter(isVacant).map((m, i) => (
+                      <span key={m.id || i} className="plate-open-slot">
+                        <span className="plate-open-badge">{rosterBadge(m) || '—'}</span>
+                        {rosterRank(m)}
+                      </span>
+                    ))}
+                  </p>
+                )}
               </div>
             ))}
           </div>

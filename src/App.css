@@ -2334,8 +2334,6 @@
   font: 400 11px/1.3 var(--mono);
   color: var(--t3);
 }
-.plate--vacant .plate-window { border-style: dashed; background: transparent; }
-.plate--vacant .plate-name   { color: var(--t3); font-weight: 400; font-style: italic; }
 @media (max-width: 600px) {
   .plate-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
 }
@@ -2357,6 +2355,36 @@
 .plate-btn:active .plate-window { transform: translateY(1px); }
 .plate-btn:focus-visible { outline: 2px solid var(--em); outline-offset: 3px; }
 
+
+/* reserved badges nobody fills yet — a line, not an empty frame */
+.plate-open {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 18px;
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px dashed var(--ln);
+}
+.plate-open-k {
+  font: 500 9px/1 var(--mono);
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--t3);
+}
+.plate-open-slot {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  font: 400 12px/1 var(--ui);
+  color: var(--t3);
+}
+.plate-open-badge {
+  font: 500 10px/1 var(--mono);
+  letter-spacing: .1em;
+  color: var(--t2);
+  font-variant-numeric: tabular-nums;
+}
 
 .plate--loading .plate-window {
   border-style: dashed;
