@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, Fragment } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom'
-import { motion, useScroll, useTransform, useInView, useMotionValue } from 'framer-motion'
+import { motion, useScroll, useTransform, useInView, useMotionValue, useSpring } from 'framer-motion'
 import './App.css'
 import logoRanger from './assets/C1i37hio.png'
 import logoState  from './assets/Ci37h33io.png'
@@ -414,6 +414,13 @@ function Reveal({ children, delay=0, dir='up' }) {
       {children}
     </motion.div>
   )
+}
+
+/* ─── SCROLL PROGRESS ───────────────────────────────────── */
+function ScrollProgress() {
+  const { scrollYProgress } = useScroll()
+  const scaleX = useSpring(scrollYProgress, { stiffness: 120, damping: 30, mass: 0.35 })
+  return <motion.div className="scroll-progress" style={{ scaleX }} aria-hidden="true"/>
 }
 
 /* ─── SECTION DIVIDER ───────────────────────────────────── */
@@ -898,9 +905,40 @@ function DeptHero() {
 
 /* ─── ROSTER SECTION ─────────────────────────────────────── */
 const ROSTER_SECTION_DEFAULT = ['Overwatch', 'High Command', 'Command', 'Supervisor', 'Rangers']
-const ROSTER_COLS         = ['Call Sign', 'CID', 'Name', 'SAPR Rank', 'SASP Rank', 'Department', 'Status', 'Join Date']
-const ROSTER_DEPTS        = ['SASP', 'LSPD', 'BCSO', 'SAPR', 'Civilian']
+const ROSTER_COLS         = ['Badge #', 'Name', 'Rank', 'CID', 'Certifications', 'Title', 'Status', 'Joined', 'Promoted']
+const ROSTER_RANKS        = [
+  'Game Warden', 'Asst. Game Warden',
+  'Lead Ranger', 'Lieutenant',
+  'Head-Sergeant', 'Sergeant First Class', 'Sergeant', 'Corporal',
+  'Senior-Ranger', 'Ranger First Class', 'Ranger',
+]
+const ROSTER_CERTS        = ['FTO', 'ASD', 'HEAT', 'SWAT', 'CID', 'MEU', 'K-9', 'SOP']
 const ROSTER_STATUSES     = ['Active', 'Inactive', 'LOA']
+
+// SAPR stands as its own department now, so a member carries a SAPR badge and a
+// SAPR rank only. Docs written while it was a SASP sub-unit used callSign/saprRank.
+const rosterBadge = m => m.badge || m.callSign || ''
+const rosterRank  = m => m.rank  || m.saprRank || ''
+const rosterCerts = m =>
+  Array.isArray(m.certs) ? m.certs
+  : typeof m.certs === 'string' ? m.certs.split(',').map(c => c.trim()).filter(Boolean)
+  : []
+
+// A rank slot that exists on the org chart but has nobody in it — the badge
+// number stays reserved so the ladder reads the same as the department sheet.
+const isVacant = m => !!m.vacant || !(m.name || '').trim()
+
+// Whole days from a YYYY-MM-DD date to today. Time in department and time since
+// promotion are derived rather than stored, so they never go stale.
+const DAY_MS = 86400000
+function daysSince(v) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v || '')) return null
+  const then = Date.parse(`${v}T00:00:00Z`)
+  const now  = Date.parse(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`)
+  if (Number.isNaN(then) || Number.isNaN(now)) return null
+  return Math.max(0, Math.round((now - then) / DAY_MS))
+}
+const fmtDays = n => `${n} day${n === 1 ? '' : 's'}`
 
 // YYYY-MM-DD  →  MM/DD/YY   (falls back to raw string for legacy data)
 function fmtRosterDate(v) {
@@ -912,19 +950,76 @@ function fmtRosterDate(v) {
   return v
 }
 
-function RosterDeptChip({ dept }) {
-  const map = {
-    SASP: 'roster-dept--sasp',
-    LSPD: 'roster-dept--lspd',
-    BCSO: 'roster-dept--bcso',
-    SAPR: 'roster-dept--sapr',
-  }
-  return <span className={`roster-dept-chip ${map[dept] || ''}`}>{dept}</span>
+function RosterCertChips({ certs }) {
+  if (!certs.length) return <span className="roster-cert-none">none</span>
+  return (
+    <span className="roster-cert-list">
+      {ROSTER_CERTS.filter(c => certs.includes(c)).map(c => (
+        <span key={c} className="roster-cert-chip">{c}</span>
+      ))}
+    </span>
+  )
 }
 
-function RosterStatusChip({ status }) {
+function RosterStatusChip({ status, vacant }) {
+  if (vacant) return <span className="roster-status-chip roster-status--vacant">Vacant</span>
   const map = { Active: 'roster-status--active', Inactive: 'roster-status--inactive', LOA: 'roster-status--loa' }
-  return <span className={`roster-status-chip ${map[status] || ''}`}>{status}</span>
+  return <span className={`roster-status-chip ${map[status] || ''}`}>{status || '—'}</span>
+}
+
+// Date over its derived age, so "18/03/26" and "172 days in dept" read as one cell.
+function RosterDateCell({ date, suffix }) {
+  const days = date ? daysSince(date) : null
+  return (
+    <div className="roster-td roster-td--stack">
+      <span className="roster-td-date">{fmtRosterDate(date)}</span>
+      {days !== null && <span className="roster-td-sub">{fmtDays(days)} {suffix}</span>}
+    </div>
+  )
+}
+
+function RosterRow({ m }) {
+  const vacant = isVacant(m)
+  return (
+    <div className={`roster-grid${vacant ? ' roster-row--vacant' : ''}`}>
+      <div className="roster-td roster-td--mono">{rosterBadge(m) || '—'}</div>
+      <div className="roster-td roster-td--name">
+        {vacant ? <span className="roster-vacant-name">Unassigned</span> : m.name}
+      </div>
+      <div className="roster-td">{rosterRank(m) || '—'}</div>
+      <div className="roster-td roster-td--mono">{(!vacant && m.cid) || '—'}</div>
+      <div className="roster-td">
+        {vacant ? <span className="roster-cert-none">—</span> : <RosterCertChips certs={rosterCerts(m)}/>}
+      </div>
+      <div className="roster-td">{(!vacant && m.title) || '—'}</div>
+      <div className="roster-td"><RosterStatusChip status={m.status} vacant={vacant}/></div>
+      <RosterDateCell date={vacant ? '' : m.joinDate}  suffix="in dept"/>
+      <RosterDateCell date={vacant ? '' : m.promoDate} suffix="ago"/>
+    </div>
+  )
+}
+
+// Mirrors the "Ranger Count" box on the department sheet. Counts only — no colour
+// carries meaning here, the status chips in the table do that.
+function RosterStats({ members }) {
+  const sworn = members.filter(m => !isVacant(m))
+  const tiles = [
+    { n: sworn.length,                                        l: 'Ranger Count' },
+    { n: sworn.filter(m => m.status === 'Active').length,     l: 'Active'       },
+    { n: sworn.filter(m => m.status === 'Inactive').length,   l: 'Inactive'     },
+    { n: sworn.filter(m => m.status === 'LOA').length,        l: 'On LOA'       },
+    { n: members.length - sworn.length,                       l: 'Open Slots'   },
+  ]
+  return (
+    <div className="roster-stats">
+      {tiles.map(t => (
+        <div key={t.l} className="roster-stat">
+          <span className="roster-stat-n">{t.n}</span>
+          <span className="roster-stat-l">{t.l}</span>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 function RosterSection() {
@@ -946,7 +1041,7 @@ function RosterSection() {
   const grouped = sections.map(name => ({
     name,
     members: allMembers.filter(m => m.section === name),
-  }))
+  })).filter(s => s.members.length > 0)
 
   return (
     <section className="sec sec--dark" id="roster">
@@ -954,43 +1049,41 @@ function RosterSection() {
         <Reveal>
           <div className="sec-head">
             <span className="sec-num">01</span>
-            <p className="sec-tag">Active Personnel</p>
+            <p className="sec-tag">Department Personnel</p>
             <SplitReveal text="Department Roster" className="sec-title" delay={.1} stagger={.028}/>
-            <FadeWords text="All active SAPR officers — updated in real time" className="sec-sub"/>
+            <FadeWords text="Every badge in the San Andreas Park Rangers — updated in real time" className="sec-sub"/>
             <div className="sec-rule"/>
           </div>
         </Reveal>
+        <Reveal delay={.1}>
+          <RosterStats members={allMembers}/>
+        </Reveal>
         <Reveal delay={.15}>
           <div className="roster-table-wrap">
-            {grouped.map(section => (
-              <div key={section.name} className="roster-section">
-                <div className="roster-section-head">
-                  <span className="roster-section-name">{section.name}</span>
-                  <span className="roster-section-count">{section.members.length} officer{section.members.length !== 1 ? 's' : ''}</span>
-                </div>
-                <div className="roster-grid">
-                  {ROSTER_COLS.map(col => (
-                    <div key={col} className="roster-th">{col}</div>
-                  ))}
-                  {section.members.length === 0 ? (
-                    <div className="roster-empty">No personnel assigned</div>
-                  ) : (
-                    section.members.map((m, i) => (
-                      <Fragment key={m.id || i}>
-                        <div className="roster-td roster-td--mono">{m.callSign}</div>
-                        <div className="roster-td roster-td--mono">{m.cid}</div>
-                        <div className="roster-td roster-td--name">{m.name}</div>
-                        <div className="roster-td">{m.saprRank}</div>
-                        <div className="roster-td">{m.saspRank}</div>
-                        <div className="roster-td"><RosterDeptChip dept={m.dept}/></div>
-                        <div className="roster-td"><RosterStatusChip status={m.status}/></div>
-                        <div className="roster-td roster-td--mono">{fmtRosterDate(m.joinDate)}</div>
-                      </Fragment>
-                    ))
-                  )}
-                </div>
+            {grouped.length === 0 && (
+              <div className="roster-section">
+                <div className="roster-empty">Roster not yet published</div>
               </div>
-            ))}
+            )}
+            {grouped.map(section => {
+              const filled = section.members.filter(m => !isVacant(m)).length
+              return (
+                <div key={section.name} className="roster-section">
+                  <div className="roster-section-head">
+                    <span className="roster-section-name">{section.name}</span>
+                    <span className="roster-section-count">
+                      {filled} of {section.members.length} filled
+                    </span>
+                  </div>
+                  <div className="roster-grid roster-grid--head">
+                    {ROSTER_COLS.map(col => (
+                      <div key={col} className="roster-th">{col}</div>
+                    ))}
+                  </div>
+                  {section.members.map((m, i) => <RosterRow key={m.id || i} m={m}/>)}
+                </div>
+              )
+            })}
           </div>
         </Reveal>
       </div>
@@ -3445,7 +3538,7 @@ function UserManagementPanel({ user, role }) {
 }
 
 /* ─── ROSTER MANAGEMENT ─────────────────────────────────── */
-const EDIT_COLS = ['Call Sign', 'CID', 'Name', 'SAPR Rank', 'SASP Rank', 'Dept', 'Status', 'Join Date', 'Section']
+const EDIT_COLS = ['Badge #', 'Name', 'Rank', 'CID', 'Certifications', 'Title', 'Phone', 'Status', 'Joined', 'Promoted', 'Notes', 'Section', 'Slot']
 
 function RosterManagementPanel({ user, role }) {
   const [members,    setMembers]    = useState([])
@@ -3541,12 +3634,22 @@ function RosterManagementPanel({ user, role }) {
   const handleBlur   = (id) => { editingId.current = null; saveRow(id) }
   const handleSelect = (id, field, value) => { updateField(id, field, value); saveRow(id) }
 
+  // Keeps certs stored in ROSTER_CERTS order so the public chips read consistently.
+  const toggleCert = (id, cert) => {
+    const current = rosterCerts(rowDataRef.current[id] || {})
+    const next    = current.includes(cert)
+      ? current.filter(c => c !== cert)
+      : ROSTER_CERTS.filter(c => c === cert || current.includes(c))
+    handleSelect(id, 'certs', next)
+  }
+
   const addRow = async (section) => {
     try {
       await addDoc(collection(db, 'sapr_roster'), {
-        section, callSign: '', cid: '', name: 'New Officer',
-        saprRank: 'Ranger', saspRank: '', dept: 'SASP',
-        status: 'Active', joinDate: '', order: Date.now(),
+        section, badge: '', cid: '', name: 'New Ranger',
+        rank: 'Ranger', certs: [], title: '', phone: '', notes: '',
+        status: 'Active', joinDate: '', promoDate: '',
+        vacant: false, order: Date.now(),
       })
     } catch (e) { setErr(e.message || 'Add failed.') }
   }
@@ -3658,26 +3761,47 @@ function RosterManagementPanel({ user, role }) {
                         <button className="roster-ctrl-btn" title="Move up"   onClick={()=>moveRow(m.id,'up')}   disabled={idx===0||isSav}>↑</button>
                         <button className="roster-ctrl-btn" title="Move down" onClick={()=>moveRow(m.id,'down')} disabled={idx===section.members.length-1||isSav}>↓</button>
                       </div>
-                      <div className="roster-td"><input className="roster-cell-input roster-cell-input--mono" value={row.callSign||''} onChange={e=>updateField(m.id,'callSign',e.target.value)} onFocus={()=>handleFocus(m.id)} onBlur={()=>handleBlur(m.id)} disabled={isSav}/></div>
-                      <div className="roster-td"><input className="roster-cell-input roster-cell-input--mono" value={row.cid||''} onChange={e=>updateField(m.id,'cid',e.target.value)} onFocus={()=>handleFocus(m.id)} onBlur={()=>handleBlur(m.id)} disabled={isSav}/></div>
-                      <div className="roster-td"><input className="roster-cell-input roster-cell-input--bold" value={row.name||''} onChange={e=>updateField(m.id,'name',e.target.value)} onFocus={()=>handleFocus(m.id)} onBlur={()=>handleBlur(m.id)} disabled={isSav}/></div>
-                      <div className="roster-td"><input className="roster-cell-input" value={row.saprRank||''} onChange={e=>updateField(m.id,'saprRank',e.target.value)} onFocus={()=>handleFocus(m.id)} onBlur={()=>handleBlur(m.id)} disabled={isSav}/></div>
-                      <div className="roster-td"><input className="roster-cell-input" value={row.saspRank||''} onChange={e=>updateField(m.id,'saspRank',e.target.value)} onFocus={()=>handleFocus(m.id)} onBlur={()=>handleBlur(m.id)} disabled={isSav}/></div>
+                      <div className="roster-td"><input className="roster-cell-input roster-cell-input--mono" value={rosterBadge(row)} onChange={e=>updateField(m.id,'badge',e.target.value)} onFocus={()=>handleFocus(m.id)} onBlur={()=>handleBlur(m.id)} disabled={isSav}/></div>
+                      <div className="roster-td"><input className="roster-cell-input roster-cell-input--bold" value={row.name||''} placeholder={row.vacant?'Unassigned':''} onChange={e=>updateField(m.id,'name',e.target.value)} onFocus={()=>handleFocus(m.id)} onBlur={()=>handleBlur(m.id)} disabled={isSav}/></div>
                       <div className="roster-td">
-                        <select className="roster-cell-input" value={row.dept||'SASP'} onChange={e=>handleSelect(m.id,'dept',e.target.value)} disabled={isSav}>
-                          {ROSTER_DEPTS.map(d=><option key={d}>{d}</option>)}
+                        <select className="roster-cell-input" value={rosterRank(row)||'Ranger'} onChange={e=>handleSelect(m.id,'rank',e.target.value)} disabled={isSav}>
+                          {ROSTER_RANKS.map(r=><option key={r}>{r}</option>)}
                         </select>
                       </div>
+                      <div className="roster-td"><input className="roster-cell-input roster-cell-input--mono" value={row.cid||''} onChange={e=>updateField(m.id,'cid',e.target.value)} onFocus={()=>handleFocus(m.id)} onBlur={()=>handleBlur(m.id)} disabled={isSav}/></div>
+                      <div className="roster-td roster-td--certs">
+                        {ROSTER_CERTS.map(c => (
+                          <button
+                            key={c} type="button"
+                            className={`roster-cert-toggle${rosterCerts(row).includes(c) ? ' is-on' : ''}`}
+                            onClick={()=>toggleCert(m.id, c)} disabled={isSav}
+                            title={`Toggle ${c}`}
+                          >{c}</button>
+                        ))}
+                      </div>
+                      <div className="roster-td"><input className="roster-cell-input" value={row.title||''} onChange={e=>updateField(m.id,'title',e.target.value)} onFocus={()=>handleFocus(m.id)} onBlur={()=>handleBlur(m.id)} disabled={isSav}/></div>
+                      <div className="roster-td"><input className="roster-cell-input roster-cell-input--mono" value={row.phone||''} onChange={e=>updateField(m.id,'phone',e.target.value)} onFocus={()=>handleFocus(m.id)} onBlur={()=>handleBlur(m.id)} disabled={isSav}/></div>
                       <div className="roster-td">
                         <select className="roster-cell-input" value={row.status||'Active'} onChange={e=>handleSelect(m.id,'status',e.target.value)} disabled={isSav}>
                           {ROSTER_STATUSES.map(s=><option key={s}>{s}</option>)}
                         </select>
                       </div>
                       <div className="roster-td"><input type="date" className="roster-cell-input roster-cell-input--date" value={row.joinDate||''} onChange={e=>updateField(m.id,'joinDate',e.target.value)} onFocus={()=>handleFocus(m.id)} onBlur={()=>handleBlur(m.id)} disabled={isSav}/></div>
+                      <div className="roster-td"><input type="date" className="roster-cell-input roster-cell-input--date" value={row.promoDate||''} onChange={e=>updateField(m.id,'promoDate',e.target.value)} onFocus={()=>handleFocus(m.id)} onBlur={()=>handleBlur(m.id)} disabled={isSav}/></div>
+                      <div className="roster-td"><input className="roster-cell-input" value={row.notes||''} onChange={e=>updateField(m.id,'notes',e.target.value)} onFocus={()=>handleFocus(m.id)} onBlur={()=>handleBlur(m.id)} disabled={isSav}/></div>
                       <div className="roster-td">
                         <select className="roster-cell-input" value={row.section||section.name} onChange={e=>handleSelect(m.id,'section',e.target.value)} disabled={isSav}>
                           {sections.map(s=><option key={s}>{s}</option>)}
                         </select>
+                      </div>
+                      <div className="roster-td">
+                        <button
+                          type="button"
+                          className={`roster-slot-toggle${row.vacant ? ' is-vacant' : ''}`}
+                          onClick={()=>handleSelect(m.id,'vacant',!row.vacant)}
+                          disabled={isSav}
+                          title={row.vacant ? 'Reserved badge with nobody in it' : 'Slot is filled'}
+                        >{row.vacant ? 'Vacant' : 'Filled'}</button>
                       </div>
                       <div className="roster-td roster-td--ctrl">
                         <button className="roster-ctrl-btn roster-ctrl-btn--del" title="Remove" onClick={()=>deleteRow(m.id)} disabled={isSav}>&#10005;</button>
@@ -4605,6 +4729,7 @@ function HuntingLicensesPage() {
 export default function App() {
   return (
     <>
+      <ScrollProgress/>
       <BlockedGate/>
       <Routes>
         <Route path="/" element={<MainPage/>}/>

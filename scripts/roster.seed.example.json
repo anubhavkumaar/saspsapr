@@ -1,0 +1,38 @@
+{
+  "_comment": "Copy to roster.seed.json and fill in from the department sheet. The real file is gitignored because it holds citizen IDs and phone numbers. `id` becomes the Firestore doc id (lowercased badge), so re-seeding overwrites in place. `order` is assigned by the script from array position. Set vacant:true for a reserved badge with nobody in it — leave name, cid, phone, status and the dates empty on those.",
+  "sections": ["Overwatch", "High Command", "Command", "Supervisor", "Rangers"],
+  "members": [
+    {
+      "id": "x-700",
+      "section": "High Command",
+      "badge": "X-700",
+      "name": "Jane Doe",
+      "rank": "Game Warden",
+      "cid": "0000",
+      "phone": "Private",
+      "certs": ["FTO", "ASD", "HEAT", "SWAT", "CID", "MEU", "K-9", "SOP"],
+      "title": "Game Warden",
+      "notes": "",
+      "status": "Active",
+      "joinDate": "2026-03-18",
+      "promoDate": "2026-06-28",
+      "vacant": false
+    },
+    {
+      "id": "x-701",
+      "section": "High Command",
+      "badge": "X-701",
+      "name": "",
+      "rank": "Asst. Game Warden",
+      "cid": "",
+      "phone": "",
+      "certs": [],
+      "title": "",
+      "notes": "",
+      "status": "",
+      "joinDate": "",
+      "promoDate": "",
+      "vacant": true
+    }
+  ]
+}
