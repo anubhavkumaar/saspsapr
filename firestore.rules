@@ -1,0 +1,99 @@
+rules_version = '2';
+
+// The live security rules for project `saspsapr`, transcribed verbatim from the
+// comment block that has lived in src/firebase.js. Committing them here puts
+// them under version control and lets `firebase deploy --only firestore:rules`
+// publish them, instead of them being edited by hand in the console.
+//
+// KNOWN GAP — read this before relying on any of it:
+// `sapr_users` and `sapr_roster` both allow a write from ANY signed-in account.
+// That means any ranger can overwrite any other ranger's profile, re-point their
+// own `badge` link at the Game Warden's entry, or edit the roster outright. The
+// admin UI gates these actions, but the database does not. A tightened version
+// is drafted at the bottom of this file; it is NOT active. See the note there
+// before switching, because it can lock out management accounts that are not one
+// of the three privileged emails.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /fishing_evidence/{doc} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /sapr_mdt/{doc} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /sapr_users/{doc} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /sapr_user_secrets/{doc} {
+      allow read, write: if request.auth != null
+        && request.auth.token.email in [
+          'sapr@anubhav.gg',
+          'eddiebrock@sapr.gg',
+          'rexdavis@sapr.gg'
+        ];
+    }
+
+    match /sapr_applications/{doc} {
+      allow create: if true;
+      allow read, update, delete: if request.auth != null;
+    }
+
+    match /sapr_roster/{doc} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /sapr_config/{doc} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.auth.token.email in [
+          'sapr@anubhav.gg',
+          'eddiebrock@sapr.gg',
+          'rexdavis@sapr.gg'
+        ];
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DRAFT — NOT ACTIVE. Closes the gap described above.
+//
+// Before switching to this, confirm two things:
+//   1. Every account that needs to edit the roster is one of the three
+//      privileged emails. Any 'management' role account outside that list
+//      loses roster write access under these rules.
+//   2. The profile editor always writes `email` on the document it saves.
+//      Self-service writes are authorised by that field matching the caller,
+//      because rules cannot derive the doc id (email with @ and . replaced
+//      by _) from the token.
+//
+//    function privileged() {
+//      return request.auth != null && request.auth.token.email in [
+//        'sapr@anubhav.gg', 'eddiebrock@sapr.gg', 'rexdavis@sapr.gg'
+//      ];
+//    }
+//
+//    match /sapr_users/{doc} {
+//      allow read: if true;
+//      // a ranger may write only their own record, and may not grant
+//      // themselves a role or re-point their badge
+//      allow write: if privileged() || (
+//        request.auth != null
+//        && request.resource.data.email == request.auth.token.email
+//        && request.resource.data.role  == resource.data.role
+//        && request.resource.data.badge == resource.data.badge
+//      );
+//    }
+//
+//    match /sapr_roster/{doc} {
+//      allow read: if true;
+//      allow write: if privileged();
+//    }

@@ -653,7 +653,7 @@
 .sec {
   position: relative;
   overflow: hidden;
-  padding: 7rem 2.5rem;
+  padding: 3.75rem 2.5rem;
   background: var(--bg2);
   z-index: 1;
   border-top: 1px solid rgba(255,255,255,0.04);
@@ -667,7 +667,7 @@
   z-index: 2;
 }
 .sec-head {
-  margin-bottom: 4rem;
+  margin-bottom: 2rem;
   position: relative;
 }
 .sec-title {
@@ -1834,8 +1834,8 @@
 /* ── Admin editable grid ── */
 .roster-edit-grid {
   display: grid;
-  grid-template-columns: 44px 80px minmax(120px,1fr) 150px 66px 200px 140px 118px 92px 118px 118px minmax(130px,180px) 118px 74px 40px;
-  min-width: 1610px;
+  grid-template-columns: 44px 80px minmax(120px,1fr) 150px 66px 200px 140px 150px 118px 92px 118px 118px minmax(130px,180px) 118px 74px 40px;
+  min-width: 1760px;
 }
 .roster-td--ctrl {
   display: flex;
@@ -2261,6 +2261,234 @@
 .roster-status--active   { color: var(--em);   border-color: var(--eb);   }
 .roster-status--inactive { color: var(--org);  border-color: var(--orgb); }
 .roster-status--loa      { color: var(--gold); border-color: var(--goldb);}
+
+
+
+/* ===================== PERSONNEL BOARD ===================== */
+.plate-board { display: flex; flex-direction: column; gap: 2.5rem; }
+.plate-group-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding-bottom: 10px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--ln);
+}
+.plate-group-name {
+  font: 600 10px/1 var(--mono);
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--t2);
+}
+.plate-group-count {
+  font: 500 10px/1 var(--mono);
+  color: var(--t3);
+  font-variant-numeric: tabular-nums;
+}
+.plate-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 14px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.plate { min-width: 0; }
+.plate-window {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--s);
+  border: 1px solid var(--ln);
+  border-radius: var(--rm);
+  overflow: hidden;
+}
+.plate-photo { width: 100%; height: 100%; object-fit: cover; }
+.plate-initials {
+  font: 600 28px/1 var(--mono);
+  letter-spacing: .06em;
+  color: var(--t3);
+}
+/* the badge sits on the plate like a stamped number */
+.plate-badge {
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline: 0;
+  padding: 5px 8px;
+  font: 500 9px/1 var(--mono);
+  letter-spacing: .14em;
+  color: var(--t2);
+  background: var(--bg2);
+  border-top: 1px solid var(--ln);
+  font-variant-numeric: tabular-nums;
+}
+.plate-name {
+  margin: 9px 0 0;
+  font: 600 13px/1.3 var(--ui);
+  color: var(--t1);
+}
+.plate-rank {
+  margin: 2px 0 0;
+  font: 400 11px/1.3 var(--mono);
+  color: var(--t3);
+}
+.plate--vacant .plate-window { border-style: dashed; background: transparent; }
+.plate--vacant .plate-name   { color: var(--t3); font-weight: 400; font-style: italic; }
+@media (max-width: 600px) {
+  .plate-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+}
+
+/* plate as control */
+.plate-btn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--rm);
+}
+.plate-btn .plate-window { transition: border-color .15s, transform .15s; }
+.plate-btn:hover .plate-window { border-color: var(--eb); }
+.plate-btn:hover .plate-name   { color: var(--em); }
+.plate-btn:active .plate-window { transform: translateY(1px); }
+.plate-btn:focus-visible { outline: 2px solid var(--em); outline-offset: 3px; }
+
+
+.plate--loading .plate-window {
+  border-style: dashed;
+  background: linear-gradient(90deg, rgba(255,255,255,.03), rgba(255,255,255,.07), rgba(255,255,255,.03));
+  background-size: 200% 100%;
+  animation: roster-bone 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) { .plate--loading .plate-window { animation: none; } }
+
+/* ===================== PERSONNEL PAGE ===================== */
+.pp-wrap {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: calc(56px + 2rem) 2rem 3rem;
+}
+.pp-back {
+  display: inline-block;
+  margin-bottom: 1.75rem;
+  font: 500 10px/1 var(--mono);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--t3);
+  text-decoration: none;
+}
+.pp-back:hover { color: var(--em); }
+.pp-loading, .pp-missing { padding: 3rem 0; }
+.pp-missing-title { font: 700 22px/1.2 var(--disp); text-transform: uppercase; color: var(--t1); margin: 0 0 .5rem; }
+.pp-missing-body, .pp-loading { font: 400 14px/1.6 var(--ui); color: var(--t2); margin: 0 0 1.25rem; }
+.pp-top {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 2.25rem;
+  align-items: start;
+}
+.pp-shots { display: flex; flex-direction: column; gap: 10px; }
+.pp-frame {
+  aspect-ratio: 4 / 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--s);
+  border: 1px solid var(--ln);
+  border-radius: var(--rm);
+  overflow: hidden;
+}
+.pp-photo { width: 100%; height: 100%; object-fit: cover; }
+.pp-initials { font: 600 54px/1 var(--mono); color: var(--t3); }
+.pp-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.pp-tab {
+  position: relative;
+  width: 62px;
+  height: 62px;
+  padding: 0;
+  overflow: hidden;
+  background: var(--s2);
+  border: 1px solid var(--ln);
+  border-radius: var(--r);
+  cursor: pointer;
+  opacity: .55;
+  transition: opacity .15s, border-color .15s;
+}
+.pp-tab img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pp-tab-n {
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline-end: 0;
+  padding: 1px 4px;
+  font: 500 9px/1.4 var(--mono);
+  color: var(--t2);
+  background: var(--bg2);
+  border-top-left-radius: var(--r);
+}
+.pp-tab:hover { opacity: .85; border-color: var(--t2); }
+.pp-tab.is-on { opacity: 1; border-color: var(--em); }
+.pp-tab:focus-visible { outline: 2px solid var(--em); outline-offset: 2px; }
+.pp-id { padding-top: 4px; }
+.pp-badge {
+  margin: 0 0 10px;
+  font: 500 11px/1 var(--mono);
+  letter-spacing: .2em;
+  color: var(--t3);
+  font-variant-numeric: tabular-nums;
+}
+.pp-name {
+  margin: 0 0 6px;
+  font: 700 clamp(30px, 4vw, 46px)/0.98 var(--disp);
+  letter-spacing: .01em;
+  text-transform: uppercase;
+  color: var(--t1);
+}
+.pp-rank { margin: 0 0 14px; font: 400 14px/1 var(--mono); color: var(--t2); }
+.pp-bio {
+  margin: 20px 0 0;
+  font: 400 15px/1.7 var(--ui);
+  color: var(--t2);
+  max-width: 64ch;
+  text-wrap: pretty;
+}
+.pp-block { margin-top: 2.75rem; }
+.pp-block-h {
+  margin: 0 0 .9rem;
+  font: 600 10px/1 var(--mono);
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--t3);
+  padding-bottom: .7rem;
+  border-bottom: 1px solid var(--ln);
+}
+.pp-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 1px;
+  margin: 0;
+  background: var(--ln);
+  border: 1px solid var(--ln);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+.pp-fact { display: flex; flex-direction: column; gap: 7px; padding: 13px 15px; background: var(--s); }
+.pp-fact dt {
+  font: 500 9px/1 var(--mono);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--t3);
+}
+.pp-fact dd { margin: 0; font: 400 13px/1.45 var(--ui); color: var(--t1); }
+.pp-notes { margin: 0; font: 400 14px/1.65 var(--ui); color: var(--t2); max-width: 64ch; }
+@media (max-width: 760px) {
+  .pp-wrap { padding: calc(56px + 1.5rem) 1.25rem 3rem; }
+  .pp-top { grid-template-columns: 1fr; gap: 1.5rem; }
+  .pp-shots { max-width: 300px; }
+}
 
 /* ===================== HUNTING ===================== */
 .hunt-block-title {

@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
-import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom'
+import { useState, useEffect, useRef, Fragment } from 'react'
+import { Routes, Route, Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { motion, useScroll, useInView, useMotionValue, useSpring, useReducedMotion } from 'framer-motion'
 import './App.css'
 import logoRanger from './assets/C1i37hio.png'
@@ -430,6 +430,7 @@ function Paginator({ page, total, perPage, onChange }) {
 const HOME_SECTIONS = [
   { id:'hero',            path:'/',        label:'Home'    },
   { id:'roster',          path:'/roster',  label:'Roster'  },
+  { id:'personnel',       path:'/personnel', label:'Personnel' },
   { id:'hunting-urgency', path:'/hunting', label:'Hunting' },
   { id:'fishing',         path:'/fishing', label:'Fishing' },
   { id:'map',             path:'/map',     label:'Map'     },
@@ -529,7 +530,6 @@ function Navbar() {
   useEffect(()=>{
     const onHomeArea = isHomePath(loc.pathname)
     const idsByRoute = {
-      '/proposal': ['hero','overview','proposal','evidence','why','map','finalask'],
       '/fieldwork':['fishing-evidence','mdt','leaderboard'],
       '/admin':    ['admin-overview','user-management','applications','roster-management'],
     }
@@ -570,19 +570,14 @@ function Navbar() {
 
   const anchorLinks = onHome
     ? HOME_SECTIONS.slice(1).map(s => ({ l:s.label, id:s.id, to:s.path }))
-    : loc.pathname==='/proposal'
-    ? [{l:'Overview',id:'overview'},{l:'Evidence',id:'evidence'},{l:'Why SAPR',id:'why'},{l:'Map',id:'map'}]
     : []
 
-  const routeLinks = loc.pathname==='/proposal'
-    ? [{l:'Home', to:'/'}]
-    : [
-        {l:'Home',      to:'/'},
-        {l:'Field Work',to:'/fieldwork'},
-        ...(user ? [{l:'Licenses', to:'/licenses'}] : []),
-        {l:'Join',      to:'/joinsapr'},
-        {l:'Proposal',  to:'/proposal'},
-      ]
+  const routeLinks = [
+    {l:'Home',      to:'/'},
+    {l:'Field Work',to:'/fieldwork'},
+    ...(user ? [{l:'Licenses', to:'/licenses'}] : []),
+    {l:'Join',      to:'/joinsapr'},
+  ]
 
   const otherRouteLinks = routeLinks.filter(l=>l.to!=='/')
 
@@ -831,9 +826,11 @@ function DeptHero() {
         <motion.div className="hero-meta"
           initial={{opacity:0,y:14}} animate={{opacity:1,y:0}} transition={{delay:1.1,duration:.6}}>
           {[
-            {k:'Commanding Officer', v:'Game Warden Rex Davis (222)'},
+            {k:'Commanding Officer', v:'Game Warden Rex Davis (700 · 777)'},
             {k:'Overwatch',          v:'Trooper Eddie Brock (299)'},
             {k:'Jurisdiction',       v:'Statewide — All Fishing & Hunting Zones'},
+            {k:'Partners',           v:'San Andreas State Police (SASP)'},
+            {k:'Station',            v:'Beaver Bush Park Ranger Station — Baytree Canyon Rd & Marlowe Dr, Vinewood Hills'},
           ].map((r,i)=>(
             <div key={i}>
               {i>0 && <div className="hero-meta-sep"/>}
@@ -881,7 +878,7 @@ function DeptHero() {
 }
 
 /* ─── ROSTER SECTION ─────────────────────────────────────── */
-const ROSTER_SECTION_DEFAULT = ['Overwatch', 'High Command', 'Command', 'Supervisor', 'Rangers']
+const ROSTER_SECTION_DEFAULT = ['Overwatch', 'Dept Head', 'High Command', 'Command', 'Supervisor', 'Rangers']
 const ROSTER_COLS         = ['Badge #', 'Name', 'Rank', 'CID', 'Certifications', 'Title', 'Status', 'Joined', 'Promoted']
 const ROSTER_RANKS        = [
   'Game Warden', 'Asst. Game Warden',
@@ -1108,350 +1105,6 @@ function RosterSection() {
 }
 
 /* ─── HERO ──────────────────────────────────────────────── */
-function Hero() {
-  return (
-    <section className="hero" id="hero">
-      {/* Background animals */}
-      <FlyingBirds/>
-      <RunningAnimals type="forest"/>
-
-      {/* Giant watermark text */}
-      <div className="hero-watermark" aria-hidden="true">
-        <span className="hero-watermark-text">SAPR</span>
-      </div>
-
-      {/* Status pills — top right */}
-      <div className="hero-pills">
-        {[
-          {dot:'sdot--em',  col:'var(--em)',  border:'rgba(16,185,129,.2)',  label:'Fishing Laws Active'},
-          {dot:'sdot--org', col:'var(--org)', border:'rgba(249,115,22,.22)', label:'Dispatch Overloaded'},
-          {dot:'sdot--red', col:'var(--red)', border:'rgba(239,68,68,.22)',  label:'0 Dedicated Officers'},
-        ].map((p,i)=>(
-          <motion.div key={i} className="hero-pill"
-            style={{color:p.col, borderColor:p.border}}
-            initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} transition={{delay:1.2+i*.12}}>
-            <span className={`sdot ${p.dot}`}/>
-            {p.label}
-          </motion.div>
-        ))}
-      </div>
-
-      {/* Main content */}
-      <div className="hero-body">
-        <motion.div className="hero-eyebrow"
-          initial={{opacity:0,y:-12}} animate={{opacity:1,y:0}} transition={{delay:.2}}>
-          <div className="hero-logos">
-            <div className="hero-logo-sm" style={{backgroundImage:`url(${logoRanger})`}}/>
-            <div className="hero-logo-sm" style={{backgroundImage:`url(${logoState})`}}/>
-          </div>
-          <div className="hero-eyebrow-text">
-            <span className="hero-eyebrow-dept">SAPR · Field Proposal</span>
-            <span className="hero-eyebrow-date">March 28, 2026</span>
-          </div>
-        </motion.div>
-
-        <MaskReveal text="Letter of Proposal" className="hero-h1" el="h1" delay={.4}/>
-
-        <motion.p className="hero-dept-line"
-          initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} transition={{delay:.95,duration:.6}}>
-          <Shimmer text="San Andreas Park Rangers"/>
-        </motion.p>
-
-        <motion.div className="hero-meta"
-          initial={{opacity:0,y:14}} animate={{opacity:1,y:0}} transition={{delay:1.1,duration:.6}}>
-          {[
-            {k:'From', v:'Sgt. Rex Davis (222) · Los Santos Police Department'},
-            {k:'To',   v:'SASP Commissioner · High Command'},
-            {k:'Re',   v:'Establishment of a Dedicated Environmental Enforcement Department'},
-          ].map((r,i)=>(
-            <div key={i}>
-              {i>0 && <div className="hero-meta-sep"/>}
-              <div className="hero-meta-row">
-                <span className="hero-meta-key">{r.k}</span>
-                <span className="hero-meta-val">{r.v}</span>
-              </div>
-            </div>
-          ))}
-        </motion.div>
-
-        <motion.div className="hero-actions"
-          initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} transition={{delay:1.25,duration:.5}}>
-          <motion.a href="#overview" className="btn-primary"
-            whileHover={{scale:1.04}} whileTap={{scale:.96}}>
-            Read the Proposal
-            <motion.span animate={{x:[0,5,0]}} transition={{duration:1.4,repeat:Infinity}}>→</motion.span>
-          </motion.a>
-          <a href="#evidence" className="btn-secondary">View Evidence ↓</a>
-        </motion.div>
-
-        <motion.div className="hero-stats-row"
-          initial={{opacity:0}} animate={{opacity:1}} transition={{delay:1.4,duration:.6}}>
-          {[
-            {n:'10+', l:'Dispatch Calls',    s:'in 23 min · one location', col:'var(--org)'},
-            {n:'0',   l:'Dedicated Officers',s:'for ecological enforcement',col:'var(--red)'},
-            {n:'33',  l:'Protected Species', s:'at risk without SAPR',      col:'var(--em)' },
-          ].map((s,i)=>(
-            <div key={i} className="hero-stat">
-              <span className="hero-stat-n" style={{color:s.col}}>
-                <CountUp target={s.n} delay={1.45+i*.18}/>
-              </span>
-              <span className="hero-stat-l">{s.l}</span>
-              <span className="hero-stat-s">{s.s}</span>
-            </div>
-          ))}
-        </motion.div>
-      </div>
-
-      {/* Scroll indicator */}
-      <div className="hero-scroll">
-        <motion.div className="hero-scroll-line"
-          animate={{scaleY:[0,1,0],opacity:[0,1,0]}}
-          transition={{duration:2,repeat:Infinity,ease:'easeInOut'}}
-          style={{transformOrigin:'top'}}/>
-        <span className="hero-scroll-text">scroll</span>
-      </div>
-    </section>
-  )
-}
-
-/* ─── OVERVIEW ──────────────────────────────────────────── */
-function OverviewSection() {
-  return (
-    <section className="sec" id="overview">
-      <RunningAnimals type="forest"/>
-      <div className="sec-inner">
-        <Reveal>
-          <div className="sec-head">
-            <SplitReveal text="The Situation Has Arrived" className="sec-title" delay={.1} stagger={.025}/>
-            <FadeWords text="Fishing laws are live, licenses are being issued, and the enforcement gap is already visible" className="sec-sub"/>
-            <div className="sec-rule"/>
-          </div>
-        </Reveal>
-        <div className="ov-grid">
-          {[
-            {icon:'📜',st:'Active',       sd:'sdot--em',  sc:'var(--em)',  title:'Fishing Laws Live',         cl:'',        body:'Official fishing regulations are now in force. Citizens are actively obtaining $650 licenses through the attorney licensing system. The regulatory framework exists — but enforcement does not.'},
-            {icon:'📡',st:'Mar 27, 2026', sd:'sdot--org', sc:'var(--org)', title:'Dispatch Overloaded',        cl:'card--org',body:'Over ten Code 10-49A calls hit dispatch in under 23 minutes from a single location — Procopio Promenade. They competed directly with standard city calls. Most went unresponded.'},
-            {icon:'🎯',st:'Active',       sd:'sdot--red', sc:'var(--red)', title:'Hunting Season Now Open',   cl:'card--red', body:'Hunting licenses are now being issued and hunting is actively underway. Licensed firearms, remote wilderness terrain, and 33 documented protected and endangered species are simultaneously in play — SAPR stand-up is no longer preventative, it is overdue.'},
-            {icon:'⚠', st:'0 Officers',  sd:'sdot--red', sc:'var(--red)', title:'No Dedicated Unit Exists',   cl:'card--red', body:'There is no dedicated environmental enforcement officer, no independent chain of command, and no dedicated protocol for wildlife calls. All violations are handled — or more often not handled — by general patrol.'},
-          ].map((c,i)=>(
-            <Reveal key={i} delay={i*.09}>
-              <motion.div className={`card ${c.cl} ov-card`} whileHover={{scale:1.02,y:-4}} transition={{type:'spring',stiffness:280}}>
-                <div className="ov-top">
-                  <span className="ov-icon">{c.icon}</span>
-                  <span className="ov-status" style={{color:c.sc}}>
-                    <span className={`sdot ${c.sd}`}/>
-                    {c.st}
-                  </span>
-                </div>
-                <h4 className="ov-title">{c.title}</h4>
-                <p className="ov-body">{c.body}</p>
-              </motion.div>
-            </Reveal>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-/* ─── PROPOSAL LETTER ───────────────────────────────────── */
-function ProposalSection() {
-  return (
-    <section className="sec sec--dark" id="proposal">
-      <div className="sec-inner">
-        <Reveal>
-          <div className="sec-head">
-            <MaskReveal text="Letter of Proposal" className="sec-title" delay={.1}/>
-            <FadeWords text="Formal proposal for the establishment of San Andreas Park Rangers as a standalone department under SASP" className="sec-sub"/>
-            <div className="sec-rule"/>
-          </div>
-        </Reveal>
-        <Reveal delay={.2}>
-          <div className="letter-wrap">
-            <div className="letter">
-              <div className="letter-header">
-                <div>
-                  <div className="letter-author">Rex Davis</div>
-                  <div className="letter-rank">Sergeant (222), Los Santos Police Department (LSPD)</div>
-                </div>
-                <div className="letter-date">March 28, 2026</div>
-              </div>
-              <div className="letter-meta">
-                {[{k:'To',v:'SASP Commissioner\nSan Andreas State Police (SASP) High Commands'}].map((r,i)=>(
-                  <div key={i} className="letter-meta-row">
-                    <span className="letter-meta-k">{r.k}</span>
-                    <span className="letter-meta-v" style={{whiteSpace:'pre-line'}}>{r.v}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="letter-subject">
-                Subject: Formal Proposal — Establishment of San Andreas Park Rangers (SAPR) as a Dedicated Environmental Enforcement Department Under SASP
-              </div>
-              <div className="letter-body">
-                <p>Dear Commissioner,</p>
-                <p>I am Sergeant Rex Davis (Badge #222), currently serving with the Los Santos Police Department. I write today not strictly as an LSPD officer, but as an officer with firsthand experience in ecological enforcement failures — having previously served as a Corporal with the Blaine County Sheriff's Office, where I witnessed the same gaps in wildlife oversight play out repeatedly with no dedicated unit to address them.</p>
-                <p>That experience made clear that the problem is structural, not circumstantial. Today, the same issues exist in San Andreas — and they are already escalating. <strong style={{color:'var(--gold)'}}>Fishing laws are already live. Licenses are already being issued. And our dispatch system is already overwhelmed.</strong></p>
-                <h4>The Enforcement Gap Is Already Here</h4>
-                <p>On March 27th, 2026 — within a single 23-minute window — I documented over ten (10) separate Code 10-49A "Suspicious Fishing" calls flooding our dispatch system. All originated from the same location: <strong>Procopio Promenade and the Pacific Ocean</strong>. These calls competed on the same screen with standard 311 calls, traffic accidents, and active city emergencies. No dedicated officer existed to respond to them.</p>
-                <p>This is what enforcement failure looks like in practice: laws exist, violations happen openly, and there is no one mandated, authorized, and equipped to respond.</p>
-                <h4 style={{color:'var(--red)'}}>The Hunting Argument — Act Before It Is Too Late</h4>
-                <p>Fishing violations are already generating ten-plus calls in twenty minutes from a single pier. When hunting licenses are issued, we simultaneously introduce <strong>licensed firearms, remote wilderness terrain,</strong> and <strong style={{color:'var(--red)'}}>33 documented protected and endangered species</strong> into the enforcement equation.</p>
-                <ul>
-                  <li>Poaching will go unchecked in remote hunting zones where patrol units cannot quickly respond</li>
-                  <li>Endangered species — cougars, rare deer, protected birds — will be hunted or poached before we can document their presence</li>
-                  <li>Illegal weapons will be used under the legal cover of hunting licenses with no specialist to distinguish</li>
-                  <li>Overhunting of common species will deplete populations before any cap can be enforced</li>
-                  <li>Dispatch will be paralyzed by a wave of wildlife calls with no dedicated route or response</li>
-                </ul>
-                <p><strong style={{color:'var(--gold)'}}>We cannot build the fire department after the fire. SAPR must exist before hunting licenses are issued — not concurrently, and not after.</strong></p>
-                <h4>The Formal Request</h4>
-                <ul>
-                  <li>Statewide jurisdiction for all environmental and wildlife enforcement across San Andreas</li>
-                  <li>Independent rank structure and chain of command operating directly under SASP</li>
-                  <li>Full authority to issue, verify, and revoke fishing and hunting licenses</li>
-                  <li>Authority to patrol, inspect, and enforce in all designated wildlife zones statewide</li>
-                  <li>Coordination authority with LSPD, BCSO, and SASP as operational needs require</li>
-                </ul>
-                <p>The laws are live. The violations are happening. The hunting window is approaching. The window to act responsibly is now.</p>
-              </div>
-              <div className="letter-sig">
-                <div className="letter-sig-name">Rex Davis</div>
-                <div className="letter-sig-rank">Sergeant (222) · Los Santos Police Department (LSPD)</div>
-                <div className="letter-sig-rank" style={{color:'var(--gold)',marginTop:'.2rem'}}>Proposed Founding Officer · San Andreas Park Rangers (SAPR)</div>
-              </div>
-            </div>
-          </div>
-        </Reveal>
-      </div>
-    </section>
-  )
-}
-
-/* ─── EVIDENCE ──────────────────────────────────────────── */
-function EvidenceSection() {
-  return (
-    <section className="sec sec--alt" id="evidence">
-      <RunningAnimals type="forest"/>
-      <div className="sec-inner">
-        <Reveal>
-          <div className="sec-head">
-            <SplitReveal text="The Case in Numbers" className="sec-title" delay={.1} stagger={.028}/>
-            <FadeWords text="Dispatch logs from March 27th, 2026 — demonstrating real-time enforcement collapse" className="sec-sub"/>
-            <div className="sec-rule"/>
-          </div>
-        </Reveal>
-        <Reveal delay={.1}>
-          <div className="ev-bar">
-            {[
-              {v:'10+',l:'10-49A Calls',   n:'Suspicious Fishing',       col:'var(--org)'},
-              {v:'23', l:'Minutes',         n:'Total observed timespan',  col:'var(--em)' },
-              {v:'1',  l:'Hotspot',         n:'Procopio Promenade',       col:'var(--em)' },
-              {v:'0',  l:'Units Dedicated', n:'To respond to any of them',col:'var(--red)'},
-            ].map((s,i)=>(
-              <motion.div key={i} className="ev-cell" whileHover={{scale:1.04}}>
-                <div className="ev-num" style={{color:s.col}}><CountUp target={s.v} delay={.2+i*.12}/></div>
-                <div className="ev-lbl">{s.l}</div>
-                <div className="ev-note">{s.n}</div>
-              </motion.div>
-            ))}
-          </div>
-        </Reveal>
-        <Reveal delay={.2}>
-          <div className="disp-grid">
-            {[
-              {src:'https://i.vgy.me/kmBpMZ.png', badge:'First Wave',       bg:'#b45309',cap:'Calls from 3–15 minutes ago — the initial flood begins at Procopio Promenade'},
-              {src:'https://i.vgy.me/HGBUER.png',badge:'Competing Priority',bg:'#dc2626',cap:'Mid-window — 10-49A calls continue while a standard 311 car accident competes for unit attention'},
-              {src:'https://i.vgy.me/hClmYI.png',badge:'Peak Overload',     bg:'#dc2626',cap:'Every visible entry is 10-49A Suspicious Fishing — dispatch saturated with no dedicated route'},
-            ].map((img,i)=>(
-              <Reveal key={i} delay={i*.12} dir={i%2===0?'left':'right'}>
-                <motion.div className="card card--flat disp-card" whileHover={{scale:1.02,y:-4}}>
-                  <span className="disp-badge" style={{background:img.bg}}>{img.badge}</span>
-                  <img src={img.src} alt={img.cap} className="disp-img" loading="lazy"/>
-                  <p className="disp-cap">{img.cap}</p>
-                </motion.div>
-              </Reveal>
-            ))}
-          </div>
-        </Reveal>
-        <Reveal delay={.3}>
-          <div className="alert alert--danger" style={{marginTop:'1.5rem'}}>
-            <span className="alert-icon">▶</span>
-            <span>All entries above are Code <strong>10-49A "Suspicious Fishing"</strong> logged on <strong>March 27th, 2026</strong> at <strong>Procopio Promenade, Pacific Ocean</strong>. No dedicated unit existed to respond. Standard patrol was simultaneously handling city 311 calls — the exact conflict this proposal resolves.</span>
-          </div>
-        </Reveal>
-        <Reveal delay={.35}>
-          <h3 style={{marginTop:'3rem',marginBottom:'.5rem',font:'700 22px/1 var(--ui)',letterSpacing:'-.3px'}}>From My Experience: Documented Wildlife Violations</h3>
-          <p style={{color:'var(--t2)',fontSize:'.88rem',marginBottom:'.9rem'}}>Incidents I personally observed and documented — each went unaddressed due to the absence of a dedicated enforcement unit.</p>
-          <div className="incident-list">
-            {[
-              'Cows harassed and run over near Paleto farm areas without consequence',
-              'Injured dogs at Legion Square due to public negligence — no ecological response unit',
-              'Coyotes frequently run over on highways, no wildlife report or response protocol',
-              'Deer run over off-road near windmill area — zero enforcement follow-up',
-            ].map((inc,i)=>(
-              <Reveal key={i} delay={.06*i} dir="right">
-                <motion.div className="incident-row" whileHover={{scale:1.01}}>
-                  <span className="incident-marker">▸</span>
-                  <span>{inc}</span>
-                </motion.div>
-              </Reveal>
-            ))}
-          </div>
-        </Reveal>
-      </div>
-    </section>
-  )
-}
-
-/* ─── WHY DEPARTMENT ────────────────────────────────────── */
-function WhySection() {
-  return (
-    <section className="sec" id="why">
-      <RunningAnimals type="forest"/>
-      <div className="sec-inner">
-        <Reveal>
-          <div className="sec-head">
-            <SplitReveal text="Why a Department, Not a Sub-Unit" className="sec-title" delay={.1} stagger={.022}/>
-            <FadeWords text="Six reasons why environmental enforcement embedded in LSPD or BCSO is structurally broken" className="sec-sub"/>
-            <div className="sec-rule"/>
-          </div>
-        </Reveal>
-        <div className="why-grid">
-          {WHY.map((w,i)=>(
-            <Reveal key={i} delay={i*.07} dir={i%2===0?'left':'right'}>
-              <motion.div className="card why-card" whileHover={{scale:1.02,y:-4}}>
-                <span className="why-num">{w.n}</span>
-                <h4 className="why-title">{w.t}</h4>
-                <p className="why-body">{w.b}</p>
-              </motion.div>
-            </Reveal>
-          ))}
-        </div>
-        <Reveal delay={.42}>
-          <div className="card cmp-outer" style={{marginTop:'2.5rem',padding:0,overflow:'hidden'}}>
-            <div className="cmp-head-row">SAPR Standalone vs. Sub-Department</div>
-            <div className="cmp-grid">
-              <div className="cmp-col cmp-col--no">
-                <div className="cmp-colhead">LSPD / BCSO Sub-Department</div>
-                {['Dual chain of command — conflicts inevitable','City or county jurisdiction only','Ecological calls compete with primary duties','No dedicated conservation training path','Metrics buried in parent agency reporting','Cannot operate statewide independently'].map((t,i)=>(
-                  <div key={i} className="cmp-row"><span className="cmp-icon cmp-icon--no">✗</span><span>{t}</span></div>
-                ))}
-              </div>
-              <div className="cmp-col cmp-col--yes">
-                <div className="cmp-colhead">SAPR — Standalone Under SASP</div>
-                {['Single clear chain of command — SASP','Statewide jurisdiction across all zones','Environmental enforcement is the only mandate','Dedicated game warden training track','Clear KPIs: licenses, citations, species data','Full authority in every wildlife zone statewide'].map((t,i)=>(
-                  <div key={i} className="cmp-row"><span className="cmp-icon cmp-icon--yes">✓</span><span>{t}</span></div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </Reveal>
-      </div>
-    </section>
-  )
-}
-
-/* ─── HUNTING REGULATIONS ───────────────────────────────── */
 function HuntingSection() {
   const HUNT_AREAS = ['Mount Chiliad','Mount Josiah','Mount Gordo','Chiliad Mountain State Wilderness','San Chianski Mountain Range']
   const RESTRICTIONS = [
@@ -1733,51 +1386,6 @@ function MapSection() {
 }
 
 /* ─── FINAL ASK ─────────────────────────────────────────── */
-function FinalAskSection() {
-  return (
-    <section className="sec sec--alt" id="finalask">
-      <RunningAnimals type="forest"/>
-      <FlyingBirds/>
-      <div className="sec-inner">
-        <Reveal>
-          <div className="sec-head">
-            <MaskReveal text="The Ask" className="sec-title" delay={.1}/>
-            <FadeWords text="One authorization. One department. One chance to protect what cannot be replaced." className="sec-sub"/>
-            <div className="sec-rule"/>
-          </div>
-        </Reveal>
-        <Reveal delay={.2}>
-          <div className="card card--gold ask-card">
-            <p className="ask-lead">Commissioner, this proposal asks for one thing:</p>
-            <div className="ask-headline">Authorization to establish SAPR as a standalone department under SASP.</div>
-            <p className="ask-body">The framework is built. The penal codes are written. The species are classified. The zones are mapped. The licensing process is documented. The equipment regulations are finalized. Everything needed to operate is ready. The only missing piece is the authority to exist — and the clock is running.</p>
-            <div className="ask-list">
-              {[
-                'Authorize SAPR as a standalone department operating directly under SASP',
-                'Grant statewide environmental enforcement jurisdiction to SAPR officers',
-                "Establish SAPR's independent rank structure and chain of command, separate from LSPD and BCSO",
-                'Mandate that hunting licenses are not issued to the public until SAPR is operational',
-              ].map((ask,i)=>(
-                <motion.div key={i} className="ask-item" initial={{opacity:0,x:-30}} whileInView={{opacity:1,x:0}} viewport={{once:true}} transition={{delay:i*.1}}>
-                  <span className="ask-num">{String(i+1).padStart(2,'0')}</span>
-                  <span>{ask}</span>
-                </motion.div>
-              ))}
-            </div>
-            <div className="ask-sig">
-              <div className="ask-sig-name">Rex Davis</div>
-              <div className="ask-sig-rank">Sergeant (222) · Los Santos Police Department (LSPD)</div>
-              <div className="ask-sig-rank" style={{color:'var(--t2)'}}>Proposed Founding Officer · San Andreas Park Rangers (SAPR)</div>
-              <div className="ask-sig-date">March 28, 2026</div>
-            </div>
-          </div>
-        </Reveal>
-      </div>
-    </section>
-  )
-}
-
-/* ─── FOOTER ────────────────────────────────────────────── */
 function Footer() {
   return (
     <footer className="footer">
@@ -1789,7 +1397,7 @@ function Footer() {
         <div className="footer-name">San Andreas Park Rangers</div>
         <div className="footer-rule"/>
         <div className="footer-sub">Protecting wildlife · Enforcing regulations · Preserving the ecosystem</div>
-        <div className="footer-sub" style={{marginTop:'.4rem'}}>Built &amp; led by Game Warden Rex Davis (222) · Founding Officer, San Andreas Park Rangers</div>
+        <div className="footer-sub" style={{marginTop:'.4rem'}}>Built &amp; led by Game Warden Rex Davis (700 · 777) · Founding Officer, San Andreas Park Rangers</div>
         <nav className="footer-links">
           <a href="#hero"    className="footer-link">Home</a>
           <a href="#roster"  className="footer-link">Roster</a>
@@ -1797,7 +1405,6 @@ function Footer() {
           <a href="#fishing" className="footer-link">Fishing</a>
           <a href="#map"     className="footer-link">Zone Map</a>
           <Link to="/joinsapr" className="footer-link">Join SAPR</Link>
-          <Link to="/proposal" className="footer-link">Proposal</Link>
         </nav>
       </Reveal>
     </footer>
@@ -2300,7 +1907,7 @@ function RecruitmentSection() {
                 Fill out the form below. Keep it real, <strong>1 or 2 lines</strong>, no AI-written essays.
                 Tell us why you want to join and what you're bringing to the table.
                 <br/><br/>
-                Once your form is submitted, you'll need to <strong>find a time to meet Trooper Eddie (SAPR Overwatch) and Game Warden Rex in person</strong> — sit down, give your pitch, share your ambitions.
+                Once your form is submitted, you'll need to <strong>find a time to meet High Command — Game Warden Rex Davis or Lead Ranger Ricky Shawn — in person</strong> — sit down, give your pitch, share your ambitions.
                 If it's a fit, your application gets marked and you'll receive your login credentials.
                 <br/><br/>
                 From there — upload your field evidence. <strong>Quality, not quantity.</strong> We don't want someone grinding just to show numbers.
@@ -2333,7 +1940,7 @@ function RecruitmentSection() {
               <div className="rec-success">
                 <div className="rec-success-icon">&#10003;</div>
                 <div className="rec-success-title">Form Received</div>
-                <div className="rec-success-sub">Now find a time to sit down with Trooper Eddie & Game Warden Rex — give your pitch in person. We'll take it from there.</div>
+                <div className="rec-success-sub">Now find a time to sit down with High Command — Game Warden Rex Davis or Lead Ranger Ricky Shawn — and give your pitch in person. We'll take it from there.</div>
               </div>
             ) : (
               <>
@@ -3220,38 +2827,259 @@ function FishingEvidencePage() {
 }
 
 /* ─── PROPOSAL PAGE ─────────────────────────────────────── */
-function ProposalPage() {
+/* ─── PERSONNEL BOARD ────────────────────── */
+// The faces behind the record: the same live roster grouped by rank tier, as
+// ID plates. A member's `photo` URL fills the window when one exists; until
+// then the plate shows the initials, so an unfilled slot still reads as a slot.
+const initialsOf = name => (name || '')
+  .trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase()
+
+function PlateWindow({ m, large, src }) {
+  const initials = initialsOf(m.name)
+  const shot = src !== undefined ? src : m.photo
   return (
-    <div style={{minHeight:'100vh',background:'var(--bg)'}}>
-      <Navbar/>
-      <div style={{paddingTop:'56px'}}>
-        <div className="proposal-back-bar">
-          <Link to="/" className="proposal-back-btn">
-            ← Back to SAPR
-          </Link>
-          <span className="proposal-back-label">Original Proposal — March 28, 2026</span>
-        </div>
-        <Hero/>
-        <SectionDiv label="Section 01 — Overview"/>
-        <OverviewSection/>
-        <SectionDiv label="Section 02 — Proposal Letter"/>
-        <ProposalSection/>
-        <SectionDiv label="Section 03 — Evidence"/>
-        <EvidenceSection/>
-        <SectionDiv label="Section 04 — Why SAPR"/>
-        <WhySection/>
-        <SectionDiv label="Section 05 — Zone Map"/>
-        <MapSection/>
-        <SectionDiv label="Section 06 — Formal Request"/>
-        <FinalAskSection/>
-        <Footer/>
-      </div>
+    <div className={`plate-window${large ? ' plate-window--lg' : ''}`}>
+      {shot
+        ? <img className="plate-photo" src={shot} alt="" loading="lazy"/>
+        : <span className="plate-initials" aria-hidden="true">{initials || '—'}</span>}
+      <span className="plate-badge">{rosterBadge(m) || '—'}</span>
     </div>
   )
 }
 
-/* ─── MAIN PAGE ─────────────────────────────────────────── */
-// Module-level flag — survives React remounts within the same page load, resets on hard refresh
+function PersonnelPlate({ m }) {
+  const vacant = isVacant(m)
+  const name   = (m.name || '').trim()
+  // A reserved badge has nothing to open, so it is a plate and not a control.
+  if (vacant) {
+    return (
+      <li className="plate plate--vacant">
+        <PlateWindow m={m}/>
+        <p className="plate-name">Unassigned</p>
+        <p className="plate-rank">{rosterRank(m) || '—'}</p>
+      </li>
+    )
+  }
+  return (
+    <li className="plate">
+      <Link to={`/personnel/${encodeURIComponent(rosterBadge(m).toLowerCase())}`}
+        className="plate-btn" aria-label={`Open profile for ${name}`}>
+        <PlateWindow m={m}/>
+        <p className="plate-name">{name}</p>
+        <p className="plate-rank">{rosterRank(m) || '—'}</p>
+      </Link>
+    </li>
+  )
+}
+
+// A ranger's own page, reached by its own URL so it can be linked and shared.
+// Shared loader: the roster document plus whatever the officer supplied.
+function useRosterMember(badgeParam) {
+  const [member, setMember] = useState(undefined)
+  useEffect(() => {
+    let roster = null, mine = null
+    const merge = () => {
+      if (roster === null) return
+      setMember(roster && mine ? { ...roster, photo: mine.photo || roster.photo || '', bio: mine.bio || roster.bio || '' } : roster)
+    }
+    const unsubM = onSnapshot(collection(db, 'sapr_roster'), snap => {
+      const hit = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .find(m => rosterBadge(m).toLowerCase() === (badgeParam || '').toLowerCase())
+      roster = hit || null
+      merge()
+    })
+    const unsubU = onSnapshot(collection(db, 'sapr_users'), snap => {
+      const hit = snap.docs.map(d => d.data())
+        .find(u => (u.badge || '').toLowerCase() === (badgeParam || '').toLowerCase())
+      mine = hit ? { photo: hit.photoUrl || '', bio: hit.bio || '' } : null
+      merge()
+    })
+    return () => { unsubM(); unsubU() }
+  }, [badgeParam])
+  return member
+}
+
+function PersonnelPage() {
+  const { badge } = useParams()
+  const m = useRosterMember(badge)
+  const [shot, setShot] = useState(0)
+
+  const gallery = m
+    ? [...new Set([m.photo, ...(Array.isArray(m.photos) ? m.photos : [])].filter(Boolean))]
+    : []
+  const active = gallery[Math.min(shot, Math.max(gallery.length - 1, 0))] || ''
+
+  const body = () => {
+    if (m === undefined) return <p className="pp-loading">Loading personnel record\u2026</p>
+    if (m === null) return (
+      <div className="pp-missing">
+        <p className="pp-missing-title">No such badge</p>
+        <p className="pp-missing-body">No personnel record matches <code>{badge}</code>.</p>
+        <Link to="/" className="pp-back">Back to the department</Link>
+      </div>
+    )
+    const joined = daysSince(m.joinDate)
+    const promo  = daysSince(m.promoDate)
+    const facts = [
+      ['Badge',    rosterBadge(m) || '—'],
+      ['Rank',     rosterRank(m)  || '—'],
+      ['Section',  m.section      || '—'],
+      ['CID',      m.cid          || '—'],
+      ['Title',    m.title        || '—'],
+      ['Joined',   m.joinDate  ? `${fmtRosterDate(m.joinDate)} \u00b7 ${fmtDays(joined)} in dept` : '—'],
+      ['Promoted', m.promoDate ? `${fmtRosterDate(m.promoDate)} \u00b7 ${fmtDays(promo)} ago`     : '—'],
+    ]
+    return (
+      <>
+        <Link to="/" className="pp-back">← Department roster</Link>
+        <div className="pp-top">
+          <div className="pp-shots">
+            <div className="pp-frame">
+              {active
+                ? <img className="pp-photo" src={active} alt={`${m.name}, ${rosterRank(m)}`}/>
+                : <span className="pp-initials" aria-hidden="true">{initialsOf(m.name) || '—'}</span>}
+            </div>
+            {gallery.length > 1 && (
+              <div className="pp-tabs" role="tablist" aria-label="Photographs">
+                {gallery.map((url, i) => (
+                  <button key={url} role="tab" type="button"
+                    aria-selected={i === shot}
+                    className={`pp-tab${i === shot ? ' is-on' : ''}`}
+                    onClick={()=>setShot(i)}>
+                    <img src={url} alt="" loading="lazy"/>
+                    <span className="pp-tab-n">{i + 1}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="pp-id">
+            <p className="pp-badge">{rosterBadge(m)}</p>
+            <h1 className="pp-name">{m.name}</h1>
+            <p className="pp-rank">{rosterRank(m)}</p>
+            <RosterStatusChip status={m.status} vacant={isVacant(m)}/>
+            {m.bio && <p className="pp-bio">{m.bio}</p>}
+          </div>
+        </div>
+
+        <section className="pp-block">
+          <h2 className="pp-block-h">Service Record</h2>
+          <dl className="pp-facts">
+            {facts.map(([k, v]) => (
+              <div key={k} className="pp-fact"><dt>{k}</dt><dd>{v}</dd></div>
+            ))}
+          </dl>
+        </section>
+
+        <section className="pp-block">
+          <h2 className="pp-block-h">Certifications</h2>
+          <RosterCertChips certs={rosterCerts(m)}/>
+        </section>
+
+        {m.notes && (
+          <section className="pp-block">
+            <h2 className="pp-block-h">Notes</h2>
+            <p className="pp-notes">{m.notes}</p>
+          </section>
+        )}
+      </>
+    )
+  }
+
+  return (
+    <div style={{minHeight:'100vh',background:'var(--bg)'}}>
+      <Navbar/>
+      <div className="pp-wrap">{body()}</div>
+      <Footer/>
+    </div>
+  )
+}
+
+function PersonnelBoard() {
+  const [roster,   setRoster]   = useState([])
+  const [selfMap,  setSelfMap]  = useState({})
+  const [loaded,   setLoaded]   = useState(false)
+  const [sections, setSections] = useState(ROSTER_SECTION_DEFAULT)
+
+  useEffect(() => {
+    const unsubM = onSnapshot(
+      query(collection(db, 'sapr_roster'), orderBy('order', 'asc')),
+      snap => { setRoster(snap.docs.map(d => ({ id: d.id, ...d.data() }))); setLoaded(true) },
+      ()   => setLoaded(true)
+    )
+    // Officers maintain their own photo and write-up from the profile editor;
+    // management links their account to a badge, which is the join key.
+    const unsubU = onSnapshot(collection(db, 'sapr_users'), snap => {
+      const map = {}
+      snap.docs.forEach(d => {
+        const u = d.data()
+        if (u.badge) map[u.badge] = { photo: u.photoUrl || '', bio: u.bio || '' }
+      })
+      setSelfMap(map)
+    })
+    const unsubS = onSnapshot(doc(db, 'sapr_config', 'roster'), snap => {
+      if (snap.exists() && Array.isArray(snap.data().sections))
+        setSections(snap.data().sections)
+    })
+    return () => { unsubM(); unsubU(); unsubS() }
+  }, [])
+
+  // What the officer supplied wins; the roster document is the fallback.
+  const members = roster.map(m => {
+    const mine = selfMap[rosterBadge(m)]
+    if (!mine) return m
+    return { ...m, photo: mine.photo || m.photo || '', bio: mine.bio || m.bio || '' }
+  })
+
+  const grouped = sections
+    .map(name => ({ name, members: members.filter(m => m.section === name) }))
+    .filter(g => g.members.length > 0)
+
+  return (
+    <section className="sec sec--dark" id="personnel">
+      <div className="sec-inner">
+        <Reveal>
+          <div className="sec-head">
+            <SplitReveal text="Personnel" className="sec-title" el="h2"/>
+            <FadeWords text="Every serving ranger and every reserved badge, by rank" className="sec-sub"/>
+            <div className="sec-rule"/>
+          </div>
+        </Reveal>
+        <Reveal delay={.12}>
+          <div className="plate-board">
+            {!loaded && (
+              <ul className="plate-grid" aria-hidden="true">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <li key={i} className="plate plate--loading"><div className="plate-window"/></li>
+                ))}
+              </ul>
+            )}
+            {loaded && grouped.length === 0 && (
+              <div className="roster-empty">
+                <p className="roster-empty-title">No personnel published yet</p>
+                <p className="roster-empty-body">Rangers added in the admin roster panel appear here immediately.</p>
+              </div>
+            )}
+            {grouped.map(g => (
+              <div key={g.name} className="plate-group">
+                <div className="plate-group-head">
+                  <span className="plate-group-name">{g.name}</span>
+                  <span className="plate-group-count">{g.members.length}</span>
+                </div>
+                <ul className="plate-grid">
+                  {g.members.map((m, i) => <PersonnelPlate key={m.id || i} m={m}/>)}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  )
+}
+
+// Survives route changes so the intro only plays on a fresh entry at '/'.
 let _introPlayed = false
 
 function MainPage() {
@@ -3265,14 +3093,16 @@ function MainPage() {
     if(!done) return
     const target = HOME_SECTIONS.find(s => s.path === loc.pathname)
     if(!target) return
-    const t = setTimeout(()=>{
-      if(target.id === 'hero') {
-        window.scrollTo({ top: 0, behavior: 'smooth' })
-      } else {
-        document.getElementById(target.id)?.scrollIntoView({ behavior:'smooth', block:'start' })
-      }
-    }, 80)
-    return ()=>clearTimeout(t)
+    // Sections that render from Firestore grow after the first paint, so a
+    // single scroll lands short. Re-settle a couple of times as content arrives.
+    const timers = [80, 700, 1500].map(d => setTimeout(()=>{
+      if(target.id === 'hero') { window.scrollTo({ top: 0, behavior: 'smooth' }); return }
+      const el = document.getElementById(target.id)
+      if(!el) return
+      if(Math.abs(el.getBoundingClientRect().top - 56) < 8) return
+      el.scrollIntoView({ behavior:'smooth', block:'start' })
+    }, d))
+    return ()=>timers.forEach(clearTimeout)
   },[loc.pathname, done])
 
   return (
@@ -3282,11 +3112,13 @@ function MainPage() {
       <DeptHero/>
       <SectionDiv label="Section 01 — Department Roster"/>
       <RosterSection/>
-      <SectionDiv label="Section 02 — Hunting Regulations"/>
+      <SectionDiv label="Section 02 — Personnel"/>
+      <PersonnelBoard/>
+      <SectionDiv label="Section 03 — Hunting Regulations"/>
       <HuntingSection/>
-      <SectionDiv label="Section 03 — Fishing Laws"/>
+      <SectionDiv label="Section 04 — Fishing Laws"/>
       <FishingSection/>
-      <SectionDiv label="Section 04 — Zone Map"/>
+      <SectionDiv label="Section 05 — Zone Map"/>
       <MapSection/>
       <Footer/>
     </>
@@ -3320,6 +3152,16 @@ function JoinSAPRPage() {
 /* ─── USER MANAGEMENT PANEL (admin only) ────────────────── */
 function UserManagementPanel({ user, role }) {
   const [userList,         setUserList]         = useState([])
+  const [rosterEntries,    setRosterEntries]    = useState([])
+  useEffect(()=>{
+    const unsub = onSnapshot(query(collection(db,'sapr_roster'), orderBy('order','asc')), snap => {
+      setRosterEntries(snap.docs
+        .map(d => ({ badge: d.data().badge || '', name: d.data().name || '' }))
+        .filter(r => r.badge && r.name))
+    })
+    return ()=>unsub()
+  },[])
+
   const [secretsMap,       setSecretsMap]       = useState({})
   const [shownPasses,      setShownPasses]      = useState(new Set())
   const [nuEmail,          setNuEmail]          = useState('')
@@ -3385,6 +3227,13 @@ function UserManagementPanel({ user, role }) {
     } catch(err) {
       setNuErr(err.message||'Failed to save.')
     } finally { setNuBusy(false) }
+  }
+
+  const handleBadgeChange = async (docId, badge) => {
+    setRoleBusy(docId)
+    try   { await setDoc(doc(db,'sapr_users', docId), { badge }, { merge:true }) }
+    catch (e) { console.error(e) }
+    finally   { setRoleBusy('') }
   }
 
   const handleRoleChange = async (docId, newRole) => {
@@ -3477,6 +3326,23 @@ function UserManagementPanel({ user, role }) {
                     {u.role==='blocked' && <span className="app-status-chip" style={{color:'#f87171',background:'rgba(248,113,113,.13)',borderColor:'rgba(248,113,113,.3)'}}>BLOCKED</span>}
                   </div>
                   <div style={{display:'flex',alignItems:'center',gap:'.5rem',fontSize:'.82rem'}}>
+                    <span style={{color:'#aaa'}}>Roster:</span>
+                    <select
+                      className="fe-input fe-filter-select"
+                      style={{flex:'0 0 auto',minWidth:'220px',padding:'.3rem .5rem',fontSize:'.8rem'}}
+                      value={u.badge || ''}
+                      disabled={roleBusy===docId}
+                      onChange={e=>handleBadgeChange(docId, e.target.value)}>
+                      <option value="">— Not linked —</option>
+                      {rosterEntries.map(r => (
+                        <option key={r.badge} value={r.badge}>{r.badge} · {r.name}</option>
+                      ))}
+                    </select>
+                    <span style={{color:'var(--t3)',fontSize:'.74rem'}}>
+                      {u.badge ? 'photo & profile text feed their plate' : 'link to let them fill their own plate'}
+                    </span>
+                  </div>
+                  <div style={{display:'flex',alignItems:'center',gap:'.5rem',fontSize:'.82rem'}}>
                     <span style={{color:'#aaa'}}>Pass:</span>
                     <code style={{flex:1,letterSpacing:'1px',color:'#ccc'}}>
                       {shownPasses.has(u.email) ? (storedPass||'—') : '••••••••'}
@@ -3526,7 +3392,7 @@ function UserManagementPanel({ user, role }) {
 }
 
 /* ─── ROSTER MANAGEMENT ─────────────────────────────────── */
-const EDIT_COLS = ['Badge #', 'Name', 'Rank', 'CID', 'Certifications', 'Title', 'Phone', 'Status', 'Joined', 'Promoted', 'Notes', 'Section', 'Slot']
+const EDIT_COLS = ['Badge #', 'Name', 'Rank', 'CID', 'Certifications', 'Title', 'Photo URL', 'Phone', 'Status', 'Joined', 'Promoted', 'Notes', 'Section', 'Slot']
 
 function RosterManagementPanel({ user, role }) {
   const [members,    setMembers]    = useState([])
@@ -3535,6 +3401,7 @@ function RosterManagementPanel({ user, role }) {
   const [saving,     setSaving]     = useState(new Set())
   const [err,        setErr]        = useState('')
   const [newSection, setNewSection] = useState('')
+  const [bioOpen,    setBioOpen]    = useState(() => new Set())
   const [secBusy,    setSecBusy]    = useState(false)
   const rowDataRef = useRef({})
   const editingId  = useRef(null)
@@ -3618,6 +3485,12 @@ function RosterManagementPanel({ user, role }) {
     finally   { setSaving(prev => { const s = new Set(prev); s.delete(id); return s }) }
   }
 
+  const toggleBio = (id) => setBioOpen(prev => {
+    const s = new Set(prev)
+    s.has(id) ? s.delete(id) : s.add(id)
+    return s
+  })
+
   const handleFocus  = (id) => { editingId.current = id }
   const handleBlur   = (id) => { editingId.current = null; saveRow(id) }
   const handleSelect = (id, field, value) => { updateField(id, field, value); saveRow(id) }
@@ -3635,7 +3508,7 @@ function RosterManagementPanel({ user, role }) {
     try {
       await addDoc(collection(db, 'sapr_roster'), {
         section, badge: '', cid: '', name: 'New Ranger',
-        rank: 'Ranger', certs: [], title: '', phone: '', notes: '',
+        rank: 'Ranger', certs: [], title: '', phone: '', notes: '', photo: '', bio: '',
         status: 'Active', joinDate: '', promoDate: '',
         vacant: false, order: Date.now(),
       })
@@ -3742,7 +3615,8 @@ function RosterManagementPanel({ user, role }) {
                   const row   = rows[m.id] || m
                   const isSav = saving.has(m.id)
                   return (
-                    <div key={m.id} className={`roster-edit-grid${isSav?' roster-row--saving':''}`}>
+                  <Fragment key={m.id}>
+                    <div className={`roster-edit-grid${isSav?' roster-row--saving':''}`}>
                       <div className="roster-td roster-td--ctrl">
                         <button className="roster-ctrl-btn" title="Move up"   onClick={()=>moveRow(m.id,'up')}   disabled={idx===0||isSav}>↑</button>
                         <button className="roster-ctrl-btn" title="Move down" onClick={()=>moveRow(m.id,'down')} disabled={idx===section.members.length-1||isSav}>↓</button>
@@ -3766,6 +3640,7 @@ function RosterManagementPanel({ user, role }) {
                         ))}
                       </div>
                       <div className="roster-td"><input className="roster-cell-input" value={row.title||''} onChange={e=>updateField(m.id,'title',e.target.value)} onFocus={()=>handleFocus(m.id)} onBlur={()=>handleBlur(m.id)} disabled={isSav}/></div>
+                      <div className="roster-td"><input className="roster-cell-input" placeholder="https://…" value={row.photo||''} onChange={e=>updateField(m.id,'photo',e.target.value)} onFocus={()=>handleFocus(m.id)} onBlur={()=>handleBlur(m.id)} disabled={isSav}/></div>
                       <div className="roster-td"><input className="roster-cell-input roster-cell-input--mono" value={row.phone||''} onChange={e=>updateField(m.id,'phone',e.target.value)} onFocus={()=>handleFocus(m.id)} onBlur={()=>handleBlur(m.id)} disabled={isSav}/></div>
                       <div className="roster-td">
                         <select className="roster-cell-input" value={row.status||'Active'} onChange={e=>handleSelect(m.id,'status',e.target.value)} disabled={isSav}>
@@ -3790,9 +3665,29 @@ function RosterManagementPanel({ user, role }) {
                         >{row.vacant ? 'Vacant' : 'Filled'}</button>
                       </div>
                       <div className="roster-td roster-td--ctrl">
+                        <button className="roster-ctrl-btn" title="Edit profile text" onClick={()=>toggleBio(m.id)} disabled={isSav}>{bioOpen.has(m.id)?'−':'…'}</button>
                         <button className="roster-ctrl-btn roster-ctrl-btn--del" title="Remove" onClick={()=>deleteRow(m.id)} disabled={isSav}>&#10005;</button>
                       </div>
                     </div>
+                    {bioOpen.has(m.id) && (
+                      <div className="roster-bio-row">
+                        <label className="roster-bio-label" htmlFor={`bio-${m.id}`}>
+                          Profile text — shown on this ranger's personnel profile
+                        </label>
+                        <textarea
+                          id={`bio-${m.id}`}
+                          className="roster-bio-input"
+                          rows={4}
+                          placeholder="What they do in the department, what they are known for, what they enjoy…"
+                          value={row.bio||''}
+                          onChange={e=>updateField(m.id,'bio',e.target.value)}
+                          onFocus={()=>handleFocus(m.id)}
+                          onBlur={()=>handleBlur(m.id)}
+                          disabled={isSav}
+                        />
+                      </div>
+                    )}
+                  </Fragment>
                   )
                 })}
 
@@ -4435,6 +4330,7 @@ function ProfileEditor({ user, profile, resolvedRole }) {
   const [name,    setName]    = useState('')
   const [call,    setCall]    = useState('')
   const [photo,   setPhoto]   = useState('')
+  const [bio,     setBio]     = useState('')
   const [pwCur,   setPwCur]   = useState('')
   const [pw1,     setPw1]     = useState('')
   const [pw2,     setPw2]     = useState('')
@@ -4447,7 +4343,8 @@ function ProfileEditor({ user, profile, resolvedRole }) {
     setName(profile?.displayName || '')
     setCall(profile?.callsign    || '')
     setPhoto(profile?.photoUrl   || '')
-  },[profile?.displayName, profile?.callsign, profile?.photoUrl])
+    setBio(profile?.bio          || '')
+  },[profile?.displayName, profile?.callsign, profile?.photoUrl, profile?.bio])
 
   const full    = (profile?.displayName || user.email || '').trim()
   const surname = full.split(/\s+/).filter(Boolean).pop() || full.split('@')[0]
@@ -4460,6 +4357,7 @@ function ProfileEditor({ user, profile, resolvedRole }) {
         displayName: name.trim(),
         callsign:    call.trim(),
         photoUrl:    photo.trim(),
+        bio:         bio.trim(),
         email:       user.email,
         profileUpdatedAt: serverTimestamp(),
       }, { merge:true })
@@ -4513,6 +4411,10 @@ function ProfileEditor({ user, profile, resolvedRole }) {
         <input className="fe-input" value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Jordan Pike" required/>
         <label style={{font:'500 11px/1 var(--mono)',letterSpacing:'1.5px',color:'var(--t3)',textTransform:'uppercase',marginTop:'.3rem'}}>Callsign</label>
         <input className="fe-input" value={call} onChange={e=>setCall(e.target.value)} placeholder="e.g. SAPR-14"/>
+        <label style={{font:'500 11px/1 var(--mono)',letterSpacing:'1.5px',color:'var(--t3)',textTransform:'uppercase',marginTop:'.3rem'}}>About You — shown on your personnel profile</label>
+        <textarea className="fe-input" rows={5} value={bio} onChange={e=>setBio(e.target.value)}
+          style={{resize:'vertical',lineHeight:1.6}}
+          placeholder="What you do in the department, what you're known for, what you enjoy…"/>
         <button className="fe-add-btn" type="submit" disabled={busy} style={{marginTop:'.4rem'}}>
           {busy ? 'Saving…' : 'Save Profile'}
         </button>
@@ -4716,15 +4618,16 @@ export default function App() {
       <Routes>
         <Route path="/" element={<MainPage/>}/>
         <Route path="/roster"  element={<MainPage/>}/>
+        <Route path="/personnel" element={<MainPage/>}/>
         <Route path="/hunting" element={<MainPage/>}/>
         <Route path="/fishing" element={<MainPage/>}/>
         <Route path="/map"     element={<MainPage/>}/>
         <Route path="/fieldwork" element={<FishingEvidencePage/>}/>
         <Route path="/licenses"  element={<HuntingLicensesPage/>}/>
         <Route path="/joinsapr" element={<JoinSAPRPage/>}/>
-        <Route path="/proposal" element={<ProposalPage/>}/>
         <Route path="/admin" element={<AdminPage/>}/>
         <Route path="/ranger" element={<RangerPage/>}/>
+        <Route path="/personnel/:badge" element={<PersonnelPage/>}/>
       </Routes>
     </>
   )
