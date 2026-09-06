@@ -893,6 +893,14 @@ const ROSTER_STATUSES     = ['Active', 'Inactive', 'LOA']
 // SAPR rank only. Docs written while it was a SASP sub-unit used callSign/saprRank.
 const rosterBadge = m => m.badge || m.callSign || ''
 const rosterRank  = m => m.rank  || m.saprRank || ''
+const badgeNumber = m => (rosterBadge(m).match(/(\d+)\s*$/) || [,''])[1]
+const rosterCallsigns = m => [
+  badgeNumber(m),
+  ...(Array.isArray(m.callsigns) ? m.callsigns : []),
+].map(String).filter(Boolean)
+const matchesCallsign = (m, q) =>
+  rosterCallsigns(m).includes(String(q || '').trim())
+
 const rosterCerts = m =>
   Array.isArray(m.certs) ? m.certs
   : typeof m.certs === 'string' ? m.certs.split(',').map(c => c.trim()).filter(Boolean)
@@ -2862,7 +2870,7 @@ function PersonnelPlate({ m }) {
   }
   return (
     <li className="plate">
-      <Link to={`/personnel/${encodeURIComponent(rosterBadge(m).toLowerCase())}`}
+      <Link to={`/${encodeURIComponent(badgeNumber(m))}`}
         className="plate-btn" aria-label={`Open profile for ${name}`}>
         <PlateWindow m={m}/>
         <p className="plate-name">{name}</p>
@@ -2877,21 +2885,24 @@ function PersonnelPlate({ m }) {
 function useRosterMember(badgeParam) {
   const [member, setMember] = useState(undefined)
   useEffect(() => {
-    let roster = null, mine = null
+    // undefined = not loaded yet, null = loaded and no such badge
+    let roster, mine = null
     const merge = () => {
-      if (roster === null) return
+      if (roster === undefined) return
       setMember(roster && mine ? { ...roster, photo: mine.photo || roster.photo || '', bio: mine.bio || roster.bio || '' } : roster)
     }
     const unsubM = onSnapshot(collection(db, 'sapr_roster'), snap => {
       const hit = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
-        .find(m => rosterBadge(m).toLowerCase() === (badgeParam || '').toLowerCase())
+        .find(m => matchesCallsign(m, badgeParam)
+                || rosterBadge(m).toLowerCase() === (badgeParam || '').toLowerCase())
       roster = hit || null
       merge()
     })
     const unsubU = onSnapshot(collection(db, 'sapr_users'), snap => {
       const hit = snap.docs.map(d => d.data())
-        .find(u => (u.badge || '').toLowerCase() === (badgeParam || '').toLowerCase())
+        .find(u => matchesCallsign({ badge: u.badge }, badgeParam)
+                || (u.badge || '').toLowerCase() === (badgeParam || '').toLowerCase())
       mine = hit ? { photo: hit.photoUrl || '', bio: hit.bio || '' } : null
       merge()
     })
@@ -2901,8 +2912,8 @@ function useRosterMember(badgeParam) {
 }
 
 function PersonnelPage() {
-  const { badge } = useParams()
-  const m = useRosterMember(badge)
+  const { badge, callsign } = useParams()
+  const m = useRosterMember(callsign || badge)
   const [shot, setShot] = useState(0)
 
   const gallery = m
@@ -2915,7 +2926,7 @@ function PersonnelPage() {
     if (m === null) return (
       <div className="pp-missing">
         <p className="pp-missing-title">No such badge</p>
-        <p className="pp-missing-body">No personnel record matches <code>{badge}</code>.</p>
+        <p className="pp-missing-body">No personnel record matches <code>{callsign || badge}</code>.</p>
         <Link to="/" className="pp-back">Back to the department</Link>
       </div>
     )
@@ -4628,6 +4639,7 @@ export default function App() {
         <Route path="/admin" element={<AdminPage/>}/>
         <Route path="/ranger" element={<RangerPage/>}/>
         <Route path="/personnel/:badge" element={<PersonnelPage/>}/>
+        <Route path="/:callsign" element={<PersonnelPage/>}/>
       </Routes>
     </>
   )
