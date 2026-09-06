@@ -31,3 +31,7 @@ dist-ssr
 
 # Roster seed holds real citizen IDs and phone numbers — keep it local
 scripts/roster.seed.json
+
+# Impeccable: keep the durable surface briefs, drop session scratch
+.impeccable/questions/
+.impeccable/refs/

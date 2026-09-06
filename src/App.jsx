@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom'
-import { motion, useScroll, useTransform, useInView, useMotionValue, useSpring } from 'framer-motion'
+import { motion, useScroll, useInView, useMotionValue, useSpring, useReducedMotion } from 'framer-motion'
 import './App.css'
 import logoRanger from './assets/C1i37hio.png'
 import logoState  from './assets/Ci37h33io.png'
@@ -330,21 +330,12 @@ function JumpingFish() {
 }
 
 /* ─── TEXT ANIMATIONS ───────────────────────────────────── */
-function SplitReveal({ text, className, el:W='h2', delay=0, stagger=0.03 }) {
-  const ref=useRef(null); const iv=useInView(ref,{once:true,margin:'-80px'})
-  return (
-    <W ref={ref} className={`${className} split-text-wrapper`}>
-      {text.split('').map((c,i)=>(
-        <motion.span key={i} className="split-char"
-          initial={{opacity:0,y:80,rotateX:90,filter:'blur(8px)'}}
-          animate={iv?{opacity:1,y:0,rotateX:0,filter:'blur(0px)'}:{}}
-          transition={{duration:.55,delay:delay+i*stagger,ease:[.215,.61,.355,1]}}
-          style={{display:c===' '?'inline':'inline-block',whiteSpace:c===' '?'pre':'normal'}}>
-          {c===' '?'\u00A0':c}
-        </motion.span>
-      ))}
-    </W>
-  )
+function SplitReveal({ text, className, el:W='h2' }) {
+  return <W className={className}>{text}</W>
+}
+
+function FadeWords({ text, className }) {
+  return <p className={`gradient-scroll-text ${className||''}`}>{text}</p>
 }
 
 function MaskReveal({ text, className, el:W='h2', delay=0 }) {
@@ -362,22 +353,6 @@ function MaskReveal({ text, className, el:W='h2', delay=0 }) {
         </span>
       ))}
     </W>
-  )
-}
-
-function FadeWords({ text, className }) {
-  const ref=useRef(null)
-  const {scrollYProgress}=useScroll({target:ref,offset:['start 0.9','start 0.3']})
-  const words=text.split(' ')
-  return (
-    <p ref={ref} className={`gradient-scroll-text ${className||''}`}>
-      {words.map((word,i)=>{
-        const s=i/words.length, e=s+1/words.length
-        const opacity=useTransform(scrollYProgress,[s,e],[0.15,1])
-        const y=useTransform(scrollYProgress,[s,e],[8,0])
-        return <motion.span key={i} style={{opacity,y,display:'inline-block',marginRight:'.3em'}}>{word}</motion.span>
-      })}
-    </p>
   )
 }
 
@@ -407,10 +382,12 @@ function CountUp({ target, delay=0 }) {
 }
 
 function Reveal({ children, delay=0, dir='up' }) {
-  const dirs={up:{y:40,x:0},down:{y:-40,x:0},left:{y:0,x:-40},right:{y:0,x:40}}
+  const dirs={up:{y:18,x:0},down:{y:-18,x:0},left:{y:0,x:-18},right:{y:0,x:18}}
+  const reduce = useReducedMotion()
+  if (reduce) return <div>{children}</div>
   return (
-    <motion.div initial={{opacity:0,...dirs[dir]}} whileInView={{opacity:1,y:0,x:0}}
-      viewport={{once:true,margin:'-50px'}} transition={{duration:.65,delay,ease:[.25,.46,.45,.94]}}>
+    <motion.div initial={dirs[dir]} whileInView={{y:0,x:0}}
+      viewport={{once:true,margin:'-50px'}} transition={{duration:.24,delay,ease:[.16,1,.3,1]}}>
       {children}
     </motion.div>
   )
@@ -678,7 +655,7 @@ function Navbar() {
           /* ── Not signed in: Sign In button ── */
           <button type="button" className={`nav-ranger-chip${chipOpen?' nav-ranger-chip--open':''}`}
             onClick={()=>setChipOpen(v=>!v)}>
-            <span className="nav-ranger-chip__avatar"><span>🔒</span></span>
+            <span className="nav-ranger-chip__avatar"><svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3.25" y="7" width="9.5" height="6.5" rx="1"/><path d="M5.5 7V4.75a2.5 2.5 0 0 1 5 0V7"/></svg></span>
             <span className="nav-ranger-chip__text">
               <span className="nav-ranger-chip__name">Sign In</span>
             </span>
@@ -707,7 +684,7 @@ function Navbar() {
             {!user ? (
               /* Login form */
               <form onSubmit={handleNavLogin} style={{display:'flex',flexDirection:'column',gap:'.65rem'}}>
-                <div style={{font:'700 13px/1 var(--ui)',marginBottom:'.15rem'}}>🔒 Sign In</div>
+                <div style={{font:'700 13px/1 var(--ui)',marginBottom:'.15rem',display:'flex',alignItems:'center',gap:'.4rem'}}><svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3.25" y="7" width="9.5" height="6.5" rx="1"/><path d="M5.5 7V4.75a2.5 2.5 0 0 1 5 0V7"/></svg> Sign In</div>
                 <input className="fe-input" type="email" placeholder="Email" value={loginEmail}
                   onChange={e=>setLoginEmail(e.target.value)} required autoFocus/>
                 <input className="fe-input" type="password" placeholder="Password" value={loginPass}
@@ -967,57 +944,84 @@ function RosterStatusChip({ status, vacant }) {
   return <span className={`roster-status-chip ${map[status] || ''}`}>{status || '—'}</span>
 }
 
-// Date over its derived age, so "18/03/26" and "172 days in dept" read as one cell.
-function RosterDateCell({ date, suffix }) {
+// Date over its derived age. The column header names which date it is, so the
+// sub-line carries the duration alone.
+function RosterDateCell({ date, label }) {
   const days = date ? daysSince(date) : null
   return (
-    <div className="roster-td roster-td--stack">
+    <div className={`roster-td roster-td--stack${date ? '' : ' roster-td--empty'}`} data-label={label}>
       <span className="roster-td-date">{fmtRosterDate(date)}</span>
-      {days !== null && <span className="roster-td-sub">{fmtDays(days)} {suffix}</span>}
+      {days !== null && <span className="roster-td-sub">{fmtDays(days)}</span>}
     </div>
   )
 }
 
+// One component for both shapes: a grid row on wide screens, a stacked record
+// card below the table breakpoint. data-label carries the column name into the
+// card, so the two views never drift apart.
 function RosterRow({ m }) {
   const vacant = isVacant(m)
+  const cid    = vacant ? '' : (m.cid   || '')
+  const title  = vacant ? '' : (m.title || '')
+  const certs  = vacant ? [] : rosterCerts(m)
+  const blank  = v => (v ? '' : ' roster-td--empty')
   return (
-    <div className={`roster-grid${vacant ? ' roster-row--vacant' : ''}`}>
-      <div className="roster-td roster-td--mono">{rosterBadge(m) || '—'}</div>
+    <div className={`roster-grid roster-row${vacant ? ' roster-row--vacant' : ''}`}>
+      <div className="roster-td roster-td--mono roster-td--badge">{rosterBadge(m) || '—'}</div>
       <div className="roster-td roster-td--name">
         {vacant ? <span className="roster-vacant-name">Unassigned</span> : m.name}
       </div>
-      <div className="roster-td">{rosterRank(m) || '—'}</div>
-      <div className="roster-td roster-td--mono">{(!vacant && m.cid) || '—'}</div>
-      <div className="roster-td">
-        {vacant ? <span className="roster-cert-none">—</span> : <RosterCertChips certs={rosterCerts(m)}/>}
+      <div className="roster-td roster-td--rank">{rosterRank(m) || '—'}</div>
+      <div className={`roster-td roster-td--mono roster-td--cid${blank(cid)}`} data-label="CID">{cid || '—'}</div>
+      <div className={`roster-td roster-td--certs-cell${blank(certs.length)}`} data-label="Certifications">
+        {certs.length ? <RosterCertChips certs={certs}/> : <span className="roster-cert-none">—</span>}
       </div>
-      <div className="roster-td">{(!vacant && m.title) || '—'}</div>
-      <div className="roster-td"><RosterStatusChip status={m.status} vacant={vacant}/></div>
-      <RosterDateCell date={vacant ? '' : m.joinDate}  suffix="in dept"/>
-      <RosterDateCell date={vacant ? '' : m.promoDate} suffix="ago"/>
+      <div className={`roster-td roster-td--title${blank(title)}`} data-label="Title">{title || '—'}</div>
+      <div className="roster-td roster-td--status"><RosterStatusChip status={m.status} vacant={vacant}/></div>
+      <RosterDateCell date={vacant ? '' : m.joinDate}  label="Joined"/>
+      <RosterDateCell date={vacant ? '' : m.promoDate} label="Promoted"/>
     </div>
   )
 }
 
-// Mirrors the "Ranger Count" box on the department sheet. Counts only — no colour
-// carries meaning here, the status chips in the table do that.
-function RosterStats({ members }) {
-  const sworn = members.filter(m => !isVacant(m))
-  const tiles = [
-    { n: sworn.length,                                        l: 'Ranger Count' },
-    { n: sworn.filter(m => m.status === 'Active').length,     l: 'Active'       },
-    { n: sworn.filter(m => m.status === 'Inactive').length,   l: 'Inactive'     },
-    { n: sworn.filter(m => m.status === 'LOA').length,        l: 'On LOA'       },
-    { n: members.length - sworn.length,                       l: 'Open Slots'   },
-  ]
+function RosterSkeleton() {
   return (
-    <div className="roster-stats">
-      {tiles.map(t => (
-        <div key={t.l} className="roster-stat">
-          <span className="roster-stat-n">{t.n}</span>
-          <span className="roster-stat-l">{t.l}</span>
+    <div className="roster-skeleton" aria-hidden="true">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="roster-grid roster-row roster-row--skeleton">
+          {ROSTER_COLS.map(c => (
+            <div key={c} className="roster-td"><span className="roster-bone"/></div>
+          ))}
         </div>
       ))}
+    </div>
+  )
+}
+
+// The department sheet leads with a Ranger Count; this is that number plus the
+// breakdown it implies. Zero-valued states are dropped rather than shown as 0.
+function RosterStats({ members }) {
+  const sworn = members.filter(m => !isVacant(m))
+  const rest  = [
+    { n: sworn.filter(m => m.status === 'Active').length,   l: 'Active'     },
+    { n: sworn.filter(m => m.status === 'Inactive').length, l: 'Inactive'   },
+    { n: sworn.filter(m => m.status === 'LOA').length,      l: 'On LOA'     },
+    { n: members.length - sworn.length,                     l: 'Open slots' },
+  ].filter(t => t.n > 0)
+
+  return (
+    <div className="roster-stats">
+      <p className="roster-stats-lead">
+        <span className="roster-stats-n">{sworn.length}</span>
+        <span className="roster-stats-l">{sworn.length === 1 ? 'ranger' : 'rangers'} on the books</span>
+      </p>
+      <ul className="roster-stats-rest">
+        {rest.map(t => (
+          <li key={t.l} className="roster-stats-item">
+            <span className="roster-stats-item-n">{t.n}</span> {t.l}
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
@@ -1025,11 +1029,13 @@ function RosterStats({ members }) {
 function RosterSection() {
   const [allMembers, setAllMembers] = useState([])
   const [sections,   setSections]   = useState(ROSTER_SECTION_DEFAULT)
+  const [loaded,     setLoaded]     = useState(false)
 
   useEffect(() => {
     const unsubM = onSnapshot(
       query(collection(db, 'sapr_roster'), orderBy('order', 'asc')),
-      snap => setAllMembers(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+      snap => { setAllMembers(snap.docs.map(d => ({ id: d.id, ...d.data() }))); setLoaded(true) },
+      ()   => setLoaded(true)
     )
     const unsubS = onSnapshot(doc(db, 'sapr_config', 'roster'), snap => {
       if (snap.exists() && Array.isArray(snap.data().sections))
@@ -1048,42 +1054,52 @@ function RosterSection() {
       <div className="sec-inner">
         <Reveal>
           <div className="sec-head">
-            <span className="sec-num">01</span>
-            <p className="sec-tag">Department Personnel</p>
             <SplitReveal text="Department Roster" className="sec-title" delay={.1} stagger={.028}/>
             <FadeWords text="Every badge in the San Andreas Park Rangers — updated in real time" className="sec-sub"/>
             <div className="sec-rule"/>
           </div>
         </Reveal>
-        <Reveal delay={.1}>
-          <RosterStats members={allMembers}/>
-        </Reveal>
+
+        {loaded && allMembers.length > 0 && (
+          <Reveal delay={.1}><RosterStats members={allMembers}/></Reveal>
+        )}
+
         <Reveal delay={.15}>
           <div className="roster-table-wrap">
-            {grouped.length === 0 && (
-              <div className="roster-section">
-                <div className="roster-empty">Roster not yet published</div>
+            <div className="roster-scroll">
+              <div className="roster-table">
+                {!loaded ? <RosterSkeleton/> : grouped.length === 0 ? (
+                  <div className="roster-empty">
+                    <p className="roster-empty-title">No badges published yet</p>
+                    <p className="roster-empty-body">
+                      Rangers added in the admin roster panel appear here immediately — no redeploy needed.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="roster-grid roster-th-row">
+                      {ROSTER_COLS.map(col => (
+                        <div key={col} className="roster-th">{col}</div>
+                      ))}
+                    </div>
+                    {grouped.map(section => {
+                      const filled = section.members.filter(m => !isVacant(m)).length
+                      return (
+                        <div key={section.name} className="roster-section">
+                          <div className="roster-section-head">
+                            <span className="roster-section-name">{section.name}</span>
+                            <span className="roster-section-count">
+                              {filled} of {section.members.length} filled
+                            </span>
+                          </div>
+                          {section.members.map((m, i) => <RosterRow key={m.id || i} m={m}/>)}
+                        </div>
+                      )
+                    })}
+                  </>
+                )}
               </div>
-            )}
-            {grouped.map(section => {
-              const filled = section.members.filter(m => !isVacant(m)).length
-              return (
-                <div key={section.name} className="roster-section">
-                  <div className="roster-section-head">
-                    <span className="roster-section-name">{section.name}</span>
-                    <span className="roster-section-count">
-                      {filled} of {section.members.length} filled
-                    </span>
-                  </div>
-                  <div className="roster-grid roster-grid--head">
-                    {ROSTER_COLS.map(col => (
-                      <div key={col} className="roster-th">{col}</div>
-                    ))}
-                  </div>
-                  {section.members.map((m, i) => <RosterRow key={m.id || i} m={m}/>)}
-                </div>
-              )
-            })}
+            </div>
           </div>
         </Reveal>
       </div>
@@ -1206,8 +1222,6 @@ function OverviewSection() {
       <div className="sec-inner">
         <Reveal>
           <div className="sec-head">
-            <span className="sec-num">01</span>
-            <p className="sec-tag">Current State · March 2026</p>
             <SplitReveal text="The Situation Has Arrived" className="sec-title" delay={.1} stagger={.025}/>
             <FadeWords text="Fishing laws are live, licenses are being issued, and the enforcement gap is already visible" className="sec-sub"/>
             <div className="sec-rule"/>
@@ -1247,8 +1261,6 @@ function ProposalSection() {
       <div className="sec-inner">
         <Reveal>
           <div className="sec-head">
-            <span className="sec-num">02</span>
-            <p className="sec-tag">Official Document</p>
             <MaskReveal text="Letter of Proposal" className="sec-title" delay={.1}/>
             <FadeWords text="Formal proposal for the establishment of San Andreas Park Rangers as a standalone department under SASP" className="sec-sub"/>
             <div className="sec-rule"/>
@@ -1323,8 +1335,6 @@ function EvidenceSection() {
       <div className="sec-inner">
         <Reveal>
           <div className="sec-head">
-            <span className="sec-num">03</span>
-            <p className="sec-tag">Field Evidence</p>
             <SplitReveal text="The Case in Numbers" className="sec-title" delay={.1} stagger={.028}/>
             <FadeWords text="Dispatch logs from March 27th, 2026 — demonstrating real-time enforcement collapse" className="sec-sub"/>
             <div className="sec-rule"/>
@@ -1401,8 +1411,6 @@ function WhySection() {
       <div className="sec-inner">
         <Reveal>
           <div className="sec-head">
-            <span className="sec-num">04</span>
-            <p className="sec-tag">The Structural Argument</p>
             <SplitReveal text="Why a Department, Not a Sub-Unit" className="sec-title" delay={.1} stagger={.022}/>
             <FadeWords text="Six reasons why environmental enforcement embedded in LSPD or BCSO is structurally broken" className="sec-sub"/>
             <div className="sec-rule"/>
@@ -1467,8 +1475,6 @@ function HuntingSection() {
       <div className="sec-inner">
         <Reveal>
           <div className="sec-head">
-            <span className="sec-num">02</span>
-            <p className="sec-tag">Active Regulations</p>
             <SplitReveal text="Hunting Laws & Regulations" className="sec-title" delay={.1} stagger={.022}/>
             <FadeWords text="Official SAPR-enforced hunting protocol across San Andreas — all officers are required to know and apply these rules" className="sec-sub"/>
             <div className="sec-rule"/>
@@ -1594,8 +1600,6 @@ function FishingSection() {
       <div className="sec-inner">
         <Reveal>
           <div className="sec-head">
-            <span className="sec-num">03</span>
-            <p className="sec-tag">Active Regulations</p>
             <MaskReveal text="Fishing Laws & Protocols" className="sec-title" delay={.1}/>
             <FadeWords text="Official SAPR-enforced fishing regulations across all San Andreas waterways and open sea" className="sec-sub"/>
             <div className="sec-rule"/>
@@ -1704,8 +1708,6 @@ function MapSection() {
       <div className="sec-inner">
         <Reveal>
           <div className="sec-head">
-            <span className="sec-num">07</span>
-            <p className="sec-tag">Operational Territory</p>
             <SplitReveal text="Hunting & Fishing Zone Map" className="sec-title" delay={.1} stagger={.028}/>
             <FadeWords text="Designated zones across San Andreas — every marked zone is SAPR's jurisdiction and responsibility" className="sec-sub"/>
             <div className="sec-rule"/>
@@ -1739,8 +1741,6 @@ function FinalAskSection() {
       <div className="sec-inner">
         <Reveal>
           <div className="sec-head">
-            <span className="sec-num">08</span>
-            <p className="sec-tag sec-tag--gold">Formal Request</p>
             <MaskReveal text="The Ask" className="sec-title" delay={.1}/>
             <FadeWords text="One authorization. One department. One chance to protect what cannot be replaced." className="sec-sub"/>
             <div className="sec-rule"/>
@@ -1947,8 +1947,6 @@ function FishingEvidenceSection() {
         {/* Header */}
         <Reveal>
           <div className="sec-head">
-            <span className="sec-num">09</span>
-            <p className="sec-tag">Field Evidence</p>
             <MaskReveal text="Fishing Calls & Illegal Fish Evidence" className="sec-title" delay={.1}/>
             <p className="sec-sub" style={{opacity:.7}}>Documented visual evidence of illegal fishing activities and violations observed in the field</p>
             <div className="fe-rule-row">
@@ -2260,8 +2258,6 @@ function RecruitmentSection() {
       <div className="sec-inner">
         <Reveal>
           <div className="sec-head">
-            <span className="sec-num" style={{color:'var(--em)'}}>JOIN</span>
-            <p className="sec-tag">{formOpen ? 'Open Enrollment' : 'Enrollment Closed'}</p>
             <SplitReveal text="San Andreas Park Rangers — Now Recruiting" className="sec-title" delay={.1} stagger={.024}/>
             <FadeWords text="Open to all Officers. Quality over quantity, we want people who mean it." className="sec-sub"/>
             <div className="sec-rule"/>
@@ -2648,8 +2644,6 @@ function ApplicationsPanel({ user, role }) {
       <div className="sec-inner">
         <Reveal>
           <div className="sec-head">
-            <span className="sec-num" style={{color:'var(--gold)'}}>APPS</span>
-            <p className="sec-tag">Management Only</p>
             <SplitReveal text="Recruitment Applications" className="sec-title" delay={.1} stagger={.028}/>
             <div className="sec-rule"/>
           </div>
@@ -2940,8 +2934,6 @@ function OfficerLeaderboard() {
       <div className="sec-inner">
         <Reveal>
           <div className="sec-head">
-            <span className="sec-num" style={{color:'var(--gold)'}}>LB</span>
-            <p className="sec-tag">Officer Activity</p>
             <SplitReveal text="Contribution Leaderboard" className="sec-title" delay={.1} stagger={.028}/>
             <FadeWords text="Ranked by evidence submissions — every upload counts toward building the case for SAPR" className="sec-sub"/>
             <div className="sec-rule"/>
@@ -3069,8 +3061,6 @@ function MDTSection() {
         {/* Header */}
         <Reveal>
           <div className="sec-head">
-            <span className="sec-num" style={{color:'var(--gold)'}}>MDT</span>
-            <p className="sec-tag">Mobile Data Terminal</p>
             <SplitReveal text="MDT & Warning Log" className="sec-title" delay={.1} stagger={.028}/>
             <FadeWords text="Record of MDTs filed and warnings issued to citizens — linked by Citizen ID" className="sec-sub"/>
             <div className="fe-rule-row">
@@ -3430,8 +3420,6 @@ function UserManagementPanel({ user, role }) {
       <div className="sec-inner">
         <Reveal>
           <div className="sec-head">
-            <span className="sec-num" style={{color:'var(--em)'}}>USERS</span>
-            <p className="sec-tag">Management Only</p>
             <SplitReveal text="Officer Accounts" className="sec-title" delay={.1} stagger={.028}/>
             <div className="sec-rule"/>
           </div>
@@ -3685,8 +3673,6 @@ function RosterManagementPanel({ user, role }) {
       <div className="sec-inner">
         <Reveal>
           <div className="sec-head">
-            <span className="sec-num" style={{color:'var(--em)'}}>ROSTER</span>
-            <p className="sec-tag">Management Only</p>
             <SplitReveal text="Manage Roster" className="sec-title" delay={.1} stagger={.028}/>
             <FadeWords text="Click any cell to edit — changes save automatically on blur" className="sec-sub"/>
             <div className="sec-rule"/>
@@ -3949,8 +3935,6 @@ function AdminPage() {
           <div className="sec-inner">
             <Reveal>
               <div className="sec-head">
-                <span className="sec-num" style={{color:'var(--em)'}}>ADMIN</span>
-                <p className="sec-tag">Management Dashboard</p>
                 <SplitReveal text="SAPR Admin Panel" className="sec-title" delay={.1} stagger={.03}/>
                 <div className="sec-rule"/>
               </div>
@@ -4416,8 +4400,6 @@ function RangerPage() {
             <div className="sec-inner">
               <Reveal>
                 <div className="sec-head">
-                  <span className="sec-num" style={{color:'var(--em)'}}>FEED</span>
-                  <p className="sec-tag">Ranger Bulletin</p>
                   <SplitReveal text="Announcements & Orders" className="sec-title" delay={.1} stagger={.028}/>
                   <div className="sec-rule"/>
                 </div>
@@ -4700,7 +4682,7 @@ function HuntingLicensesPage() {
       <Navbar/>
       <div style={{paddingTop:'56px',display:'flex',alignItems:'center',justifyContent:'center',minHeight:'80vh'}}>
         <div style={{textAlign:'center',maxWidth:'440px',padding:'0 1.5rem'}}>
-          <div style={{fontSize:'44px',marginBottom:'.6rem'}}>🔒</div>
+          <div style={{marginBottom:'.6rem',color:'var(--t3)'}}><svg viewBox="0 0 16 16" width="38" height="38" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><rect x="3.25" y="7" width="9.5" height="6.5" rx="1"/><path d="M5.5 7V4.75a2.5 2.5 0 0 1 5 0V7"/></svg></div>
           <h1 style={{font:'800 26px/1.2 var(--disp)',color:'var(--t1)',margin:'0 0 .5rem'}}>Sign-in required</h1>
           <p style={{color:'var(--t3)',font:'400 14px/1.6 var(--ui)',margin:'0 0 1.25rem'}}>
             The Hunting License Registry is only visible to signed-in users. Please sign in through the Ranger Portal or Join SAPR to request access.
