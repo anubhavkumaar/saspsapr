@@ -2927,7 +2927,7 @@ function PersonnelPage() {
       <div className="pp-missing">
         <p className="pp-missing-title">No such badge</p>
         <p className="pp-missing-body">No personnel record matches <code>{callsign || badge}</code>.</p>
-        <Link to="/" className="pp-back">Back to the department</Link>
+        <Link to="/personnel" className="pp-back">← Personnel</Link>
       </div>
     )
     const joined = daysSince(m.joinDate)
@@ -2943,7 +2943,7 @@ function PersonnelPage() {
     ]
     return (
       <>
-        <Link to="/" className="pp-back">← Department roster</Link>
+        <Link to="/personnel" className="pp-back">← Personnel</Link>
         <div className="pp-top">
           <div className="pp-shots">
             <div className="pp-frame">
