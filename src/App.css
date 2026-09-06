@@ -2518,6 +2518,47 @@
   .pp-shots { max-width: 300px; }
 }
 
+.pp-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; list-style: none; }
+.pp-tag {
+  padding: 3px 9px;
+  border: 1px solid var(--ln);
+  border-radius: var(--r);
+  font: 500 10px/1.4 var(--mono);
+  letter-spacing: .06em;
+  color: var(--t2);
+  background: var(--s2);
+}
+.pp-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.pp-chip {
+  padding: 5px 10px;
+  border: 1px solid var(--ln);
+  border-radius: var(--r);
+  font: 400 12px/1.35 var(--ui);
+  color: var(--t2);
+  background: var(--s);
+}
+.pp-chip--plate {
+  font: 500 11px/1.35 var(--mono);
+  letter-spacing: .08em;
+  color: var(--t1);
+  font-variant-numeric: tabular-nums;
+}
+.pp-block-n { margin-left: .5rem; color: var(--t3); font-variant-numeric: tabular-nums; }
+.roster-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 10px 14px;
+  margin-top: 12px;
+  max-width: 78ch;
+}
+.roster-detail-field { display: flex; flex-direction: column; gap: 5px; }
+.roster-detail-input {
+  padding: 7px 9px;
+  background: var(--s);
+  border: 1px solid var(--ln);
+  border-radius: var(--r);
+}
+
 /* ===================== HUNTING ===================== */
 .hunt-block-title {
   font: 700 18px/1 var(--ui);

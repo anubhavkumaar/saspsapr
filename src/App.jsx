@@ -894,12 +894,18 @@ const ROSTER_STATUSES     = ['Active', 'Inactive', 'LOA']
 const rosterBadge = m => m.badge || m.callSign || ''
 const rosterRank  = m => m.rank  || m.saprRank || ''
 const badgeNumber = m => (rosterBadge(m).match(/(\d+)\s*$/) || [,''])[1]
-const rosterCallsigns = m => [
+const rosterCallsigns = m => [...new Set([
   badgeNumber(m),
   ...(Array.isArray(m.callsigns) ? m.callsigns : []),
-].map(String).filter(Boolean)
+].map(String).map(s => s.trim()).filter(Boolean))]
 const matchesCallsign = (m, q) =>
   rosterCallsigns(m).includes(String(q || '').trim())
+
+// Free-form list fields arrive either as an array or a comma-separated string.
+const asList = v =>
+  Array.isArray(v) ? v.map(String).map(s => s.trim()).filter(Boolean)
+  : typeof v === 'string' ? v.split(',').map(s => s.trim()).filter(Boolean)
+  : []
 
 const rosterCerts = m =>
   Array.isArray(m.certs) ? m.certs
@@ -2923,13 +2929,19 @@ function PersonnelPage() {
     const promo  = daysSince(m.promoDate)
     const facts = [
       ['Badge',    rosterBadge(m) || '—'],
+      ['Callsign', rosterCallsigns(m).join(' · ') || '—'],
       ['Rank',     rosterRank(m)  || '—'],
       ['Section',  m.section      || '—'],
       ['CID',      m.cid          || '—'],
+      ['Date of birth', m.dob     || '—'],
       ['Title',    m.title        || '—'],
       ['Joined',   m.joinDate  ? `${fmtRosterDate(m.joinDate)} \u00b7 ${fmtDays(joined)} in dept` : '—'],
       ['Promoted', m.promoDate ? `${fmtRosterDate(m.promoDate)} \u00b7 ${fmtDays(promo)} ago`     : '—'],
     ]
+    const tags       = asList(m.tags)
+    const licences   = asList(m.licenses)
+    const vehicles   = asList(m.vehicles)
+    const properties = asList(m.properties)
     return (
       <>
         <Link to="/personnel" className="pp-back">← Personnel</Link>
@@ -2959,6 +2971,11 @@ function PersonnelPage() {
             <h1 className="pp-name">{m.name}</h1>
             <p className="pp-rank">{rosterRank(m)}</p>
             <RosterStatusChip status={m.status} vacant={isVacant(m)}/>
+            {tags.length > 0 && (
+              <ul className="pp-tags">
+                {tags.map(t => <li key={t} className="pp-tag">{t}</li>)}
+              </ul>
+            )}
             {m.bio && <p className="pp-bio">{m.bio}</p>}
           </div>
         </div>
@@ -2976,6 +2993,33 @@ function PersonnelPage() {
           <h2 className="pp-block-h">Certifications</h2>
           <RosterCertChips certs={rosterCerts(m)}/>
         </section>
+
+        {licences.length > 0 && (
+          <section className="pp-block">
+            <h2 className="pp-block-h">Licences</h2>
+            <ul className="pp-chips">
+              {licences.map(l => <li key={l} className="pp-chip">{l}</li>)}
+            </ul>
+          </section>
+        )}
+
+        {vehicles.length > 0 && (
+          <section className="pp-block">
+            <h2 className="pp-block-h">Registered vehicles <span className="pp-block-n">{vehicles.length}</span></h2>
+            <ul className="pp-chips">
+              {vehicles.map(v => <li key={v} className="pp-chip pp-chip--plate">{v}</li>)}
+            </ul>
+          </section>
+        )}
+
+        {properties.length > 0 && (
+          <section className="pp-block">
+            <h2 className="pp-block-h">Properties</h2>
+            <ul className="pp-chips">
+              {properties.map(v => <li key={v} className="pp-chip">{v}</li>)}
+            </ul>
+          </section>
+        )}
 
         {m.notes && (
           <section className="pp-block">
@@ -3522,6 +3566,7 @@ function RosterManagementPanel({ user, role }) {
       await addDoc(collection(db, 'sapr_roster'), {
         section, badge: '', cid: '', name: 'New Ranger',
         rank: 'Ranger', certs: [], title: '', phone: '', notes: '', photo: '', bio: '',
+        dob: '', tags: [], licenses: [], vehicles: [], properties: [],
         status: 'Active', joinDate: '', promoDate: '',
         vacant: false, order: Date.now(),
       })
@@ -3698,6 +3743,28 @@ function RosterManagementPanel({ user, role }) {
                           onBlur={()=>handleBlur(m.id)}
                           disabled={isSav}
                         />
+                        <div className="roster-detail-grid">
+                          {[
+                            ['dob',        'Date of birth', 'YYYY-MM-DD'],
+                            ['tags',       'Tags',          'DAVIS, MummyLover, Game Warden'],
+                            ['licenses',   'Licences',      'Car, Bike, Weapon, Hunting, Fishing'],
+                            ['vehicles',   'Vehicles',      'Plates, comma separated'],
+                            ['properties', 'Properties',    '[102] Marlowe Dr'],
+                          ].map(([k, label, ph]) => (
+                            <label key={k} className="roster-detail-field">
+                              <span className="roster-bio-label">{label}</span>
+                              <input
+                                className="roster-cell-input roster-detail-input"
+                                placeholder={ph}
+                                value={Array.isArray(row[k]) ? row[k].join(', ') : (row[k] || '')}
+                                onChange={e=>updateField(m.id, k, k === 'dob' ? e.target.value : e.target.value.split(',').map(x=>x.trim()).filter(Boolean))}
+                                onFocus={()=>handleFocus(m.id)}
+                                onBlur={()=>handleBlur(m.id)}
+                                disabled={isSav}
+                              />
+                            </label>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </Fragment>
