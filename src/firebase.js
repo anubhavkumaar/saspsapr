@@ -5,50 +5,8 @@
 // Also make sure to:
 // 1. Enable Email/Password auth: Authentication → Sign-in method → Email/Password → Enable
 // 2. Create Firestore DB: Firestore Database → Create database (start in production mode)
-// 3. Set Firestore rules (Firestore Database → Rules):
-//
-//      rules_version = '2';
-//      service cloud.firestore {
-//        match /databases/{database}/documents {
-//          match /fishing_evidence/{doc} {
-//            allow read: if true;
-//            allow write: if request.auth != null;
-//          }
-//          match /sapr_mdt/{doc} {
-//            allow read: if true;
-//            allow write: if request.auth != null;
-//          }
-//          match /sapr_users/{doc} {
-//            allow read: if true;
-//            allow write: if request.auth != null;
-//          }
-//          match /sapr_user_secrets/{doc} {
-//            allow read, write: if request.auth != null
-//              && request.auth.token.email in [
-//                'sapr@anubhav.gg',
-//                'eddiebrock@sapr.gg',
-//                'rexdavis@sapr.gg'
-//              ];
-//          }
-//          match /sapr_applications/{doc} {
-//            allow create: if true;
-//            allow read, update, delete: if request.auth != null;
-//          }
-//          match /sapr_roster/{doc} {
-//            allow read: if true;
-//            allow write: if request.auth != null;
-//          }
-//          match /sapr_config/{doc} {
-//            allow read: if true;
-//            allow write: if request.auth != null
-//              && request.auth.token.email in [
-//                'sapr@anubhav.gg',
-//                'eddiebrock@sapr.gg',
-//                'rexdavis@sapr.gg'
-//              ];
-//          }
-//        }
-//      }
+// 3. Firestore rules: firestore.rules in the repo root is a copy of the live ruleset. Deploy it with
+//    `firebase deploy --only firestore:rules`, after comparing it with Firestore Database → Rules in the console.
 
 import { initializeApp } from 'firebase/app'
 import { getFirestore }   from 'firebase/firestore'

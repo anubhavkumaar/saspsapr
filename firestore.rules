@@ -1,99 +1,128 @@
 rules_version = '2';
 
-// The live security rules for project `saspsapr`, transcribed verbatim from the
-// comment block that has lived in src/firebase.js. Committing them here puts
-// them under version control and lets `firebase deploy --only firestore:rules`
-// publish them, instead of them being edited by hand in the console.
+// Security rules for project `saspsapr`. Started on 2026-10-27 as a verbatim copy of production
+// (release projects/saspsapr/releases/cloud.firestore -> ruleset 43294e32-d408-43ac-b1ee-7b525083e833, published 2026-04-21),
+// then changed in the three places listed below. Anything not listed is exactly as it was in that ruleset.
 //
-// KNOWN GAP — read this before relying on any of it:
-// `sapr_users` and `sapr_roster` both allow a write from ANY signed-in account.
-// That means any ranger can overwrite any other ranger's profile, re-point their
-// own `badge` link at the Game Warden's entry, or edit the roster outright. The
-// admin UI gates these actions, but the database does not. A tightened version
-// is drafted at the bottom of this file; it is NOT active. See the note there
-// before switching, because it can lock out management accounts that are not one
-// of the three privileged emails.
+// History: this file used to be a transcription of a comment block in src/firebase.js. That block was an older,
+// looser draft (any signed-in account could write sapr_users and sapr_roster, no role checks) with no rule for
+// sapr_posts. Deploying that version would have loosened production and broken the Ranger announcements.
+//
+// Changes made here since that release (2026-10-27):
+//   1. sapr_submissions: anyone may create. The public application form writes an audit entry (device fingerprint,
+//      citizen ID, Discord) after each submission and ignores a refusal; the old rule (signed-in only) refused every
+//      anonymous applicant, so nothing was recorded after 30 April.
+//   2. sapr_applications: a ranger may `get` the application their own account is linked to, so the Ranger portal can show
+//      their origin department and citizen ID. They cannot list applications or read any other one.
+//   3. sapr_users: a ranger can no longer change `applicationId` on their own document (only `role` was protected before);
+//      without this, change 2 would let them point it at someone else's application.
+//
+// In short:
+//   - A role lives on sapr_users/<email with @ and . replaced by _>.role. Three allowlisted emails are always management.
+//   - management: writes sapr_users (including role), sapr_roster, sapr_config, sapr_user_secrets; reads and changes
+//     sapr_applications and sapr_submissions; creates, edits and deletes sapr_posts.
+//   - ranger: reads sapr_posts and their own linked application; edits and deletes fishing_evidence and sapr_mdt; edits
+//     their own sapr_users document but not its `role` or `applicationId`.
+//   - anyone, signed in or not: reads fishing_evidence, sapr_mdt, sapr_users, sapr_roster, sapr_config; creates
+//     sapr_applications and sapr_submissions (the application form is public).
+//   - blocked accounts are refused creates on fishing_evidence and sapr_mdt, and reads of sapr_posts.
+//
+// The ruleset can also be edited in the console: compare with production before deploying from this file.
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function emailToId() {
+      return request.auth.token.email.replace('[@.]', '_');
+    }
+
+    function isAllowlistAdmin() {
+      return signedIn()
+        && request.auth.token.email in [
+          'sapr@anubhav.gg',
+          'eddiebrock@sapr.gg',
+          'rexdavis@sapr.gg'
+        ];
+    }
+
+    function myUserDoc() {
+      return get(/databases/$(database)/documents/sapr_users/$(emailToId())).data;
+    }
+
+    function hasRole(r) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/sapr_users/$(emailToId()))
+        && myUserDoc().role == r;
+    }
+
+    function isManagement() {
+      return isAllowlistAdmin() || hasRole('management');
+    }
+
+    function isRanger() {
+      return isManagement() || hasRole('ranger');
+    }
+
+    function isBlocked() {
+      return hasRole('blocked');
+    }
+
     match /fishing_evidence/{doc} {
-      allow read: if true;
-      allow write: if request.auth != null;
+      allow read:           if true;
+      allow create:         if signedIn() && !isBlocked();
+      allow update, delete: if isRanger() && !isBlocked();
     }
 
     match /sapr_mdt/{doc} {
-      allow read: if true;
-      allow write: if request.auth != null;
+      allow read:           if true;
+      allow create:         if signedIn() && !isBlocked();
+      allow update, delete: if isRanger() && !isBlocked();
     }
 
-    match /sapr_users/{doc} {
-      allow read: if true;
-      allow write: if request.auth != null;
+    match /sapr_users/{docId} {
+      allow read:   if true;
+      allow create: if isManagement();
+      allow update: if isManagement()
+                    || (docId == emailToId()
+                        && !('role' in request.resource.data.diff(resource.data).affectedKeys())
+                        && !('applicationId' in request.resource.data.diff(resource.data).affectedKeys()));
+      allow delete: if isManagement();
     }
 
     match /sapr_user_secrets/{doc} {
-      allow read, write: if request.auth != null
-        && request.auth.token.email in [
-          'sapr@anubhav.gg',
-          'eddiebrock@sapr.gg',
-          'rexdavis@sapr.gg'
-        ];
+      allow read, write: if isManagement();
     }
 
     match /sapr_applications/{doc} {
-      allow create: if true;
-      allow read, update, delete: if request.auth != null;
-    }
-
-    match /sapr_roster/{doc} {
-      allow read: if true;
-      allow write: if request.auth != null;
+      allow create:             if true;
+      allow read, update, delete: if isManagement();
+      // A ranger may read the one application their own account is linked to (the Ranger portal overview shows its
+      // origin department and citizen ID). Only `get`, never a listing; and `applicationId` cannot be self-edited (see sapr_users).
+      allow get:                if hasRole('ranger') && doc == myUserDoc().get('applicationId', '');
     }
 
     match /sapr_config/{doc} {
-      allow read: if true;
-      allow write: if request.auth != null
-        && request.auth.token.email in [
-          'sapr@anubhav.gg',
-          'eddiebrock@sapr.gg',
-          'rexdavis@sapr.gg'
-        ];
+      allow read:  if true;
+      allow write: if isManagement();
+    }
+
+    match /sapr_roster/{doc} {
+      allow read:  if true;
+      allow write: if isManagement();
+    }
+
+    match /sapr_posts/{doc} {
+      allow read:                   if isRanger() && !isBlocked();
+      allow create, update, delete: if isManagement();
+    }
+
+    match /sapr_submissions/{doc} {
+      allow create:             if true;
+      allow read, update, delete: if isManagement();
     }
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// DRAFT — NOT ACTIVE. Closes the gap described above.
-//
-// Before switching to this, confirm two things:
-//   1. Every account that needs to edit the roster is one of the three
-//      privileged emails. Any 'management' role account outside that list
-//      loses roster write access under these rules.
-//   2. The profile editor always writes `email` on the document it saves.
-//      Self-service writes are authorised by that field matching the caller,
-//      because rules cannot derive the doc id (email with @ and . replaced
-//      by _) from the token.
-//
-//    function privileged() {
-//      return request.auth != null && request.auth.token.email in [
-//        'sapr@anubhav.gg', 'eddiebrock@sapr.gg', 'rexdavis@sapr.gg'
-//      ];
-//    }
-//
-//    match /sapr_users/{doc} {
-//      allow read: if true;
-//      // a ranger may write only their own record, and may not grant
-//      // themselves a role or re-point their badge
-//      allow write: if privileged() || (
-//        request.auth != null
-//        && request.resource.data.email == request.auth.token.email
-//        && request.resource.data.role  == resource.data.role
-//        && request.resource.data.badge == resource.data.badge
-//      );
-//    }
-//
-//    match /sapr_roster/{doc} {
-//      allow read: if true;
-//      allow write: if privileged();
-//    }
