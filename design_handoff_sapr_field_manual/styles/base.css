@@ -1,0 +1,14 @@
+/* SAPR base — reset, plain paper, links, focus */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scroll-padding-top:calc(var(--hdr-h) + 16px);-webkit-text-size-adjust:100%}
+body{background-color:var(--paper);color:var(--ink);font:400 var(--fs-body)/1.6 var(--ui);-webkit-font-smoothing:antialiased;transition:background-color .4s,color .4s}
+img{max-width:100%;display:block}
+a{color:var(--forest);text-underline-offset:3px;transition:color var(--dur-fast)}
+a:hover{color:var(--stamp)}
+button{font:inherit;color:inherit}
+::selection{background:var(--forest);color:var(--on-forest)}
+:focus-visible{outline:2px solid var(--stamp);outline-offset:2px}
+svg.lucide{width:16px;height:16px;stroke-width:2;flex-shrink:0}
+.wrap{max-width:var(--content-max);margin:0 auto;padding:0 var(--gutter)}
+@media(max-width:720px){:root{--gutter:20px}}
+::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-track{background:var(--paper-2)}::-webkit-scrollbar-thumb{background:var(--ink-3);border:2px solid var(--paper-2)}

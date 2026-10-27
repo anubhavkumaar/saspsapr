@@ -1,0 +1,13 @@
+/* SAPR motion — keyframes. Lively but purposeful; all disabled under reduced motion. */
+@keyframes sapr-rise{from{transform:translateY(105%)}to{transform:none}}
+@keyframes sapr-thunk{0%{opacity:0;transform:scale(1.9) rotate(calc(var(--rot,-8deg) - 8deg))}60%{opacity:.95}100%{opacity:.9;transform:scale(1) rotate(var(--rot,-8deg))}}
+@keyframes sapr-blink{50%{opacity:.25}}
+@keyframes sapr-caret{50%{opacity:0}}
+@keyframes sapr-tick{to{transform:translateX(-50%)}}
+@keyframes sapr-spin{to{transform:rotate(360deg)}}
+@keyframes sapr-ring{0%{transform:scale(.6);opacity:.9}100%{transform:scale(3.2);opacity:0}}
+@keyframes sapr-ping{40%{transform:scale(1.35)}}
+@keyframes sapr-slide{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
+@keyframes sapr-fade{from{opacity:0}to{opacity:1}}
+@keyframes sapr-pop{from{opacity:0;transform:scale(.94) translateY(12px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}.reveal{opacity:1;transform:none}.stamp--pending{opacity:.9}}

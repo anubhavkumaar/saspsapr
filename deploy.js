@@ -44,7 +44,7 @@ async function deploy() {
     console.log('\n Checking for unpushed commits...');
     execSync('git push origin main', { stdio: 'inherit' });
     console.log('✅ Pushed to GitHub');
-  } catch (error) {
+  } catch {
     console.log('ℹ️  No new commits to push (already up to date)');
   }
 

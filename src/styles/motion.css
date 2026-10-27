@@ -1,0 +1,39 @@
+/* SAPR motion — keyframes. Lively but purposeful; all disabled under reduced motion. */
+@keyframes sapr-rise{from{transform:translateY(105%)}to{transform:none}}
+@keyframes sapr-thunk{0%{opacity:0;transform:scale(1.9) rotate(calc(var(--rot,-8deg) - 8deg))}60%{opacity:.95}100%{opacity:.9;transform:scale(1) rotate(var(--rot,-8deg))}}
+@keyframes sapr-blink{50%{opacity:.25}}
+@keyframes sapr-caret{50%{opacity:0}}
+@keyframes sapr-spin{to{transform:rotate(360deg)}}
+@keyframes sapr-ring{0%{transform:scale(.6);opacity:.9}100%{transform:scale(3.2);opacity:0}}
+@keyframes sapr-ping{40%{transform:scale(1.35)}}
+@keyframes sapr-slide{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
+@keyframes sapr-fade{from{opacity:0}to{opacity:1}}
+@keyframes sapr-pop{from{opacity:0;transform:scale(.94) translateY(12px)}to{opacity:1;transform:none}}
+@keyframes sapr-wipe{from{clip-path:inset(0 0 100% 0)}to{clip-path:inset(0)}}
+@keyframes sapr-scan{0%{top:0;opacity:1}85%{opacity:1}100%{top:100%;opacity:0}}
+@keyframes sapr-ripple{0%{transform:scale(.5);opacity:1}100%{transform:scale(2.6);opacity:0}}
+@keyframes sapr-ping-ring{0%{transform:scale(.3);opacity:1}100%{transform:scale(3.4);opacity:0}}
+@keyframes sapr-ping-tag{0%{opacity:0;transform:translateY(6px)}12%,78%{opacity:1;transform:none}100%{opacity:0;transform:translateY(-4px)}}
+@keyframes sapr-up{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes sapr-bar{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes sapr-phone-in{from{opacity:0;transform:perspective(1400px) rotateX(18deg) translateY(50px)}to{opacity:1;transform:none}}
+@keyframes sapr-glow{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--forest) 0%,transparent)}50%{box-shadow:0 0 0 6px color-mix(in srgb,var(--forest) 22%,transparent)}}
+@keyframes sapr-power{0%{filter:brightness(2.4) saturate(0);clip-path:inset(49% 0 49% 0)}35%{clip-path:inset(0)}100%{filter:none;clip-path:inset(0)}}
+@keyframes sapr-sig{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes sapr-toast{0%{opacity:0;transform:translateY(-26px)}10%,80%{opacity:1;transform:none}100%{opacity:0;transform:translateY(-20px)}}
+@keyframes sapr-feedscan{0%{transform:translateY(-100%);opacity:0}8%{opacity:1}60%{transform:translateY(340%);opacity:1}61%,100%{opacity:0;transform:translateY(340%)}}
+@keyframes sapr-flicker{0%{opacity:0}15%{opacity:.7}25%{opacity:.1}40%{opacity:.9}55%{opacity:.35}70%,100%{opacity:1}}
+@keyframes sapr-corner{from{opacity:0;transform:scale(1.8)}to{opacity:1;transform:none}}
+@keyframes sapr-develop{from{filter:brightness(2.2) saturate(0) blur(4px)}to{filter:none}}
+@keyframes sapr-num{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:none}}
+@keyframes sapr-ink{0%{background-size:100% 0}45%{background-size:100% 100%}100%{background-size:100% 0;background-position:0 0}}
+@keyframes sapr-track{from{opacity:0;letter-spacing:.4em}to{opacity:1}}
+@keyframes sapr-band{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0)}}
+@keyframes sapr-pop-num{0%{transform:scale(.4);opacity:0}100%{transform:none;opacity:1}}
+@keyframes sapr-notice{from{box-shadow:0 0 0 var(--forest);transform:translate(5px,5px)}to{box-shadow:var(--shadow-notice);transform:none}}
+@keyframes sapr-bootlogo{0%{opacity:0;filter:brightness(3) blur(3px)}100%{opacity:1;filter:none}}
+@keyframes sapr-type{from{opacity:1;width:0}to{opacity:1;width:100%}}
+@keyframes sapr-prog{to{width:100%}}
+@keyframes sapr-crt{0%{transform:scaleX(0);opacity:1}50%{transform:scaleX(1);opacity:1}100%{transform:scaleX(1) scaleY(40);opacity:0}}
+@keyframes sapr-nudge{0%,100%{transform:none}50%{transform:translateY(-4px)}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}.reveal{opacity:1;transform:none}.stamp--pending{opacity:.9}}

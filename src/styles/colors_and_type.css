@@ -1,0 +1,66 @@
+/* SAPR Field Manual — tokens. Day (default) + Night via <html data-theme="night">. */
+:root{
+/* Paper & ink — day */
+--paper:#F2EDE1;--paper-2:#E7E0CD;--card:#FBF8F0;--card-hi:#FFFFFF;
+--ink:#1D221E;--ink-2:#51574F;--ink-3:#7B7D70;
+--rule:#D2C9B2;--frame:#1D221E;
+--shadow-c:#1D221E;
+/* Accents — day */
+--forest:#2D5A3B;--forest-2:#1F4229;--on-forest:#FFFFFF;
+--stamp:#B93C27;--warn:#A35A16;--gold:#9C7220;--water:#2B6588;
+--forest-t:rgba(45,90,59,.10);--stamp-t:#F6E2D9;--warn-t:rgba(163,90,22,.10);--water-t:rgba(43,101,136,.08);--gold-t:rgba(156,114,32,.10);
+--on-stamp-t:#4E1A10;
+/* Inverted band (ticker, active nav) */
+--band-bg:#1D221E;--band-fg:#F2EDE1;--band-accent:#E8B04A;
+/* Device chrome (constant) */
+--bezel:#0F120F;--bezel-edge:#2B302A;
+/* Type */
+--disp:'Big Shoulders Display',sans-serif;/* @kind font */
+--ui:'IBM Plex Sans',sans-serif;/* @kind font */
+--mono:'IBM Plex Mono',monospace;/* @kind font */
+--fs-display:clamp(64px,10vw,150px);/* @kind other */--fs-h1:clamp(40px,5vw,66px);/* @kind other */--fs-h2:28px;--fs-h3:22px;--fs-body:16px;--fs-small:14px;--fs-label:11px;
+--track-label:.12em;--track-wide:.14em;
+/* Spacing */
+--sp-1:4px;--sp-2:8px;--sp-3:12px;--sp-4:16px;--sp-5:20px;--sp-6:24px;--sp-8:32px;--sp-10:40px;--sp-12:48px;--sp-14:56px;--sp-20:84px;
+/* Radius — the system is square; rounding is reserved for pills and devices */
+--r-0:0px;--r-sm:2px;--r-pill:99px;--r-device:44px;--r-screen:34px;
+/* Borders */
+--bw:2px;--bw-thin:1px;
+/* Shadows — hard, offset, printed */
+--shadow-hard-sm:3px 3px 0 var(--shadow-c);
+--shadow-hard:4px 4px 0 var(--shadow-c);
+--shadow-hard-lg:6px 6px 0 var(--shadow-c);
+--shadow-card:6px 6px 0 rgba(29,34,30,.12);
+--shadow-notice:10px 10px 0 var(--forest);
+--shadow-photo:0 22px 44px -24px rgba(29,34,30,.5);
+--shadow-device:0 40px 80px -40px rgba(0,0,0,.55);
+/* Motion */
+--ease-out:cubic-bezier(.2,.8,.2,1);/* @kind other */--ease-rise:cubic-bezier(.16,1,.3,1);/* @kind other */--ease-stamp:cubic-bezier(.2,1.5,.4,1);/* @kind other */
+--dur-fast:.15s;/* @kind other */--dur:.3s;/* @kind other */--dur-slow:.7s;/* @kind other */
+/* Layout */
+--hdr-h:68px;--content-max:1200px;--gutter:32px;
+}
+[data-theme="night"]{
+--paper:#121511;--paper-2:#191D17;--card:#1C211B;--card-hi:#232922;
+--ink:#ECE6D6;--ink-2:#B5B09F;--ink-3:#8C8B7D;
+--rule:#353C32;--frame:#646C5F;
+--shadow-c:#000000;
+--forest:#86C49A;--forest-2:#A6D8B5;--on-forest:#0E1A11;
+--stamp:#EA7861;--warn:#E3A35E;--gold:#D9B060;--water:#80B8DA;
+--forest-t:rgba(134,196,154,.12);--stamp-t:rgba(234,120,97,.13);--warn-t:rgba(227,163,94,.12);--water-t:rgba(128,184,218,.10);--gold-t:rgba(217,176,96,.12);
+--on-stamp-t:#F6D3CA;
+--band-bg:#ECE6D6;--band-fg:#121511;--band-accent:#8E3F1B;
+--shadow-card:6px 6px 0 rgba(0,0,0,.45);
+--shadow-photo:0 24px 48px -20px rgba(0,0,0,.8);
+}
+/* Semantic type helpers */
+.t-display{font:900 var(--fs-display)/.84 var(--disp);text-transform:uppercase;color:var(--ink)}
+.t-h1{font:900 var(--fs-h1)/.92 var(--disp);text-transform:uppercase;color:var(--ink)}
+.t-h2{font:800 var(--fs-h2)/1 var(--disp);text-transform:uppercase;letter-spacing:.02em;color:var(--ink)}
+.t-h3{font:700 var(--fs-h3)/1.2 var(--ui);color:var(--ink)}
+.t-body{font:400 var(--fs-body)/1.6 var(--ui);color:var(--ink)}
+.t-small{font:400 var(--fs-small)/1.55 var(--ui);color:var(--ink-2)}
+.t-label{font:600 var(--fs-label)/1.3 var(--mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--ink-2)}
+.t-eyebrow{font:600 var(--fs-label)/1 var(--mono);letter-spacing:var(--track-wide);text-transform:uppercase;color:var(--forest)}
+.t-mono{font:500 13.5px/1.4 var(--mono);color:var(--ink)}
+.t-stat{font:900 72px/.85 var(--disp);color:var(--ink)}

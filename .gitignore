@@ -35,3 +35,6 @@ scripts/roster.seed.json
 # Impeccable: keep the durable surface briefs, drop session scratch
 .impeccable/questions/
 .impeccable/refs/
+
+# Design-system export used as a reference while rebuilding the site (27MB incl. a zip) — never commit
+SAPRDesign/

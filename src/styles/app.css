@@ -1,0 +1,370 @@
+/* SAPR — repo-specific additions on top of the Field Manual handoff.
+   The handoff files in this folder are untouched; everything here uses only their tokens
+   (square corners, 2px frames, hard shadows, flat paper — no textures). */
+
+/* ---------- Roster rows: the detail the live roster carries beyond the kit's name + rank ---------- */
+/* Two lines per person (name, badge, rank; then the details) so a screen shows a dozen rangers, not three. */
+.roster__p{grid-template-columns:36px minmax(0,1fr) auto;gap:12px;padding:8px 14px}
+.roster__av{width:36px;height:36px;font-size:15px}
+.roster__p b{display:inline;font-size:15px;margin-right:8px}
+.roster__p small{display:inline;font-size:11px}
+.roster__sec>h4{padding:9px 14px}
+.roster__meta{display:flex;flex-wrap:wrap;gap:2px 12px;margin-top:2px;font:500 10.5px/1.4 var(--mono);letter-spacing:.04em;color:var(--ink-3)}
+.roster__certs{display:inline-flex;flex-wrap:wrap;gap:3px}
+.roster__certs .lbl{padding:2px 4px;font-size:9px;border-width:1px}
+.roster__p--muted b{color:var(--ink-3);font-style:italic;font-weight:500}
+.roster__p--muted .roster__av{border-style:dashed;color:var(--ink-3);background:transparent}
+
+/* ---------- Personnel plates ---------- */
+/* One block per rank: a rule with its name and head-count over a row of small plates. Short ranks sit side by side, so the section stays compact
+   without becoming one boxed grid. The plate is a photo with its caption underneath, not a card. */
+.plates{display:flex;flex-wrap:wrap;align-items:flex-start;gap:40px 56px;margin-top:8px}
+.plate-group{flex:0 1 auto;min-width:0;max-width:100%}
+.plate-group__head{display:flex;justify-content:space-between;align-items:baseline;gap:18px;margin-bottom:16px;padding-bottom:10px;border-bottom:var(--bw) solid var(--frame);font:600 11px/1 var(--mono);letter-spacing:var(--track-label);text-transform:uppercase;white-space:nowrap}
+.plate-group__head em{font-style:normal;font-weight:500;color:var(--ink-2)}
+.plate-grid{list-style:none;display:flex;flex-wrap:wrap;gap:20px 16px}
+.plate{display:block;width:112px;color:var(--ink);text-decoration:none}
+.plate__win{position:relative;display:flex;align-items:center;justify-content:center;aspect-ratio:1/1;overflow:hidden;background:var(--paper-2);border:1px solid var(--frame);transition:transform var(--dur-fast),box-shadow var(--dur-fast)}
+a.plate:hover{color:var(--ink)}
+a.plate:hover .plate__win{transform:translate(-2px,-2px);box-shadow:var(--shadow-hard)}
+.plate__win img{width:100%;height:100%;object-fit:cover;object-position:50% 18%}
+.plate__ini{font:900 44px/1 var(--disp);color:var(--ink-3)}
+.plate__badge{position:absolute;left:0;top:0;padding:4px 6px;background:var(--band-bg);color:var(--band-fg);font:600 9.5px/1 var(--mono);letter-spacing:.08em}
+.plate__body{display:block;padding:9px 0 0}
+.plate__name{display:block;font:800 16px/1.05 var(--disp);text-transform:uppercase;letter-spacing:.02em}
+.plate__rank{display:block;margin-top:4px;font:500 10px/1.3 var(--mono);letter-spacing:.05em;color:var(--ink-2)}
+.plate--loading .plate__win{border-style:dashed;border-color:var(--rule)}
+.plate-open{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 18px;margin-top:18px;font:500 11.5px/1.4 var(--mono);letter-spacing:.04em;color:var(--ink-2)}
+.plate-grid+.plate-open{margin-top:20px}
+.plate-open__k{font-weight:600;letter-spacing:var(--track-label);text-transform:uppercase;color:var(--ink-3)}
+.plate-open__slot b{margin-right:8px;font-weight:600;color:var(--ink)}
+
+/* ---------- Drop zone with a pasted-URL preview ---------- */
+.dropzone--filled{padding:12px}
+.dropzone__preview{position:relative;width:100%;max-width:360px}
+.dropzone__preview img{width:100%;max-height:220px;object-fit:contain;background:var(--paper-2);border:1px solid var(--rule)}
+.dropzone__clear{position:absolute;top:6px;right:6px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:var(--stamp);color:#fff;border:0;cursor:pointer}
+
+/* ---------- Profile (self-service editor) ---------- */
+.avatar{display:flex;align-items:center;justify-content:center;width:56px;height:56px;flex-shrink:0;overflow:hidden;background:var(--card-hi);border:var(--bw) solid var(--frame);font:800 22px/1 var(--disp);color:var(--ink-2)}
+.avatar img{width:100%;height:100%;object-fit:cover}
+/* My Profile panel: drops from the account chip, right edge, no backdrop. Width and right offset are set from the chip (AccountPanel). */
+.acct-anchor{display:inline-flex}
+.acct{position:fixed;z-index:60;top:calc(var(--hdr-h) + 8px);right:var(--acct-r,12px);width:var(--acct-w,400px);max-height:calc(100dvh - var(--hdr-h) - 20px);display:flex;flex-direction:column;background:var(--card);border:3px solid var(--frame);box-shadow:var(--shadow-hard-lg);outline:0;transform-origin:100% 0}
+.acct[hidden]{display:none}
+@media(prefers-reduced-motion:no-preference){.acct:not([hidden]){animation:sapr-pop .22s var(--ease-stamp) both}}
+.acct__head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px 10px 16px;flex-shrink:0;background:var(--paper-2);border-bottom:1px solid var(--rule);font:600 11px/1 var(--mono);letter-spacing:var(--track-label);text-transform:uppercase}
+.acct__scroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+.acct__who{display:flex;align-items:center;gap:14px;padding:16px}
+.acct__who-text{min-width:0}
+.acct__name{font:800 22px/1 var(--disp);text-transform:uppercase}
+.acct__mail{margin-top:6px;font-size:12px;color:var(--ink-2);overflow-wrap:anywhere}
+.acct__sec{padding:16px;border-top:1px solid var(--rule)}
+.acct__title{font:600 11px/1 var(--mono);letter-spacing:var(--track-label);text-transform:uppercase;color:var(--ink-2)}
+.acct__pw-head{display:flex;align-items:center;justify-content:space-between}
+.acct__foot{flex-shrink:0;padding:12px 16px;border-top:1px solid var(--rule);background:var(--paper-2)}
+
+/* ---------- Phone: live logs outgrow the kit's three sample rows ---------- */
+/* A true 9:16 portrait screen whatever the log holds: the body scrolls inside the bezel instead of the phone growing with the data. */
+/* As wide as the column allows (400px at most), but never so tall that the sticky phone runs off the bottom of the screen. */
+.phone{width:min(100%,400px,calc((100vh - 140px) * 9 / 16 + 24px))}
+.phone__screen{height:auto;min-height:0;aspect-ratio:9/16}
+.phone__body{min-height:0}
+/* Power-on (MdtPhone): the laptop's boot at phone size — dark glass, lockup, typed lines, progress bar, then the log. */
+.phone__boot{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:#040504;color:#B9F5CF;transition:opacity .45s ease}
+.phone__boot--out{opacity:0;pointer-events:none}
+.phone__boot img{height:52px;opacity:0}
+.phone__boot--boot img,.phone__boot--out img{animation:sapr-bootlogo 1s ease .1s forwards}
+.phone__lines{display:flex;flex-direction:column;gap:6px;width:min(86%,250px);font:500 11px/1.4 var(--mono);letter-spacing:.04em}
+.phone__lines span{opacity:0;white-space:nowrap;overflow:hidden;width:0}
+.phone__boot--boot .phone__lines span,.phone__boot--out .phone__lines span{animation:sapr-type .35s steps(26) forwards;animation-delay:calc(.45s + var(--i) * .38s)}
+.phone__prog{width:min(86%,250px);height:3px;background:rgba(185,245,207,.15)}
+.phone__prog i{display:block;height:100%;width:0;background:#3BD07C}
+.phone__boot--boot .phone__prog i,.phone__boot--out .phone__prog i{animation:sapr-prog var(--d,2s) ease-out .3s forwards}
+/* On Home the log is a teaser: long pasted reports are clamped; Field Work shows them whole. */
+.phone--compact .mdt__note{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;line-clamp:3;overflow:hidden}
+/* The roster beside it runs long, so the phone rides along. */
+@media(min-width:901px){.sticky-col{position:sticky;top:calc(var(--hdr-h) + 24px)}}
+
+/* ---------- Header with the signed-in links (Licenses, Ranger, Admin) ---------- */
+/* The kit collapses to the burger at 900px, sized for four links. With more than four the nav
+   would collide with the actions, so it collapses earlier — same rules, higher breakpoint. */
+@media(max-width:1180px){
+  .hdr--many .hdr__nav{display:none}
+  .hdr--many .hdr__burger{display:inline-flex}
+  .hdr--many .hdr__actions{margin-left:auto}
+  .hdr--many .brand__sub{display:none}
+  .hdr--many .hdr__drawer.is-open{display:flex;flex-direction:column;position:absolute;left:0;right:0;top:100%;background:var(--paper);border-bottom:var(--bw) solid var(--frame);padding:8px var(--gutter) 16px}
+  .hdr--many .hdr__drawer a{font:600 13px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink);text-decoration:none;padding:15px 0;border-bottom:1px solid var(--rule)}
+  .hdr--many .hdr__drawer a.is-on{color:var(--forest)}
+}
+
+/* ---------- Field Work ---------- */
+.filter-bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:24px}
+/* Lightbox rides in the kit's Modal; the stage clips the zoomed / panned picture. */
+.lightbox__stage{position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;min-height:240px;background:var(--paper-2);border:var(--bw) solid var(--frame)}
+.lightbox__img{display:block;max-width:100%;max-height:68vh;object-fit:contain;user-select:none;-webkit-user-drag:none}
+.lightbox__hud{position:absolute;right:10px;bottom:10px;display:flex;align-items:center;gap:6px;z-index:2}
+.lightbox__pct{min-width:48px;padding:10px 8px;text-align:center;font:600 11px/1 var(--mono);letter-spacing:.08em;background:var(--card);border:1.5px solid var(--frame);color:var(--ink)}
+
+/* ---------- ZoneMap: the kit references this keyframe but doesn't ship it (pins drop onto the map) ---------- */
+@keyframes sapr-pin{from{opacity:0;transform:translateY(-22px) scale(.5)}to{opacity:1;transform:none}}
+
+/* ---------- Join ---------- */
+.join-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:40px;align-items:start}
+@media(max-width:900px){.join-grid{grid-template-columns:minmax(0,1fr)}}
+.join-state{display:flex;flex-direction:column;align-items:center;gap:18px;text-align:center;padding:40px 10px}
+/* Honeypot field: out of sight and out of the tab order for people, still a field for bots */
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+
+/* With the signed-in links the nav is tight between 1181px and ~1340px: drop the tagline under the brand there instead of letting it wrap. */
+@media(min-width:1181px) and (max-width:1340px){.hdr--many .brand__sub{display:none}}
+
+/* ---------- Admin ---------- */
+.stack{display:flex;flex-direction:column;gap:16px}
+.admin-note{margin:-8px 0 20px}
+/* Officer accounts: one row per account, controls under the name */
+.user-row{display:grid;gap:12px;padding:16px;border-bottom:1px solid var(--rule)}
+.user-row:last-child{border-bottom:0}
+.user-row__id{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.user-row__id b{font:800 20px/1 var(--disp);text-transform:uppercase;letter-spacing:.02em}
+.user-row__ctl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:end}
+.user-row__ctl .input{padding:8px 10px;font-size:14px}
+.user-row__pass{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.user-row__pass code{flex:1;min-width:120px;font:600 13px/1 var(--mono);letter-spacing:.12em;color:var(--ink-2);overflow-wrap:anywhere}
+.user-row__reset{display:flex;gap:8px;flex-wrap:wrap}
+.user-row__reset .input{flex:1;min-width:180px}
+@media(max-width:640px){.user-row__ctl{grid-template-columns:minmax(0,1fr)}}
+/* Roster editor */
+.rsec{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--rule)}
+.rsec__ctl{display:flex;gap:4px}
+.rsec-add{display:flex;gap:8px;padding:14px}
+.roster-sections{max-width:640px;margin-bottom:32px}
+.roster-edit{display:grid;gap:28px}
+.roster-edit .tbl td{padding:8px 10px;vertical-align:top;white-space:nowrap}
+.roster-edit .tbl .input{padding:7px 9px;font-size:13.5px;min-width:96px}
+.roster-edit .tbl td .chips{min-width:260px;white-space:normal}
+.roster-edit .tbl td .chip{padding:5px 7px;font-size:11px}
+.roster-edit__ctl{display:flex;gap:4px}
+.roster-edit__foot{padding:12px 14px;border-top:1px solid var(--rule)}
+.tbl__expand td{padding:16px;background:var(--paper-2);white-space:normal}
+.tbl__expand .field-row{--cols:5}
+@media(max-width:900px){.tbl__expand .field-row{grid-template-columns:minmax(0,1fr)}}
+/* Applications */
+.app-list{display:flex;flex-direction:column;gap:14px}
+.app-detail{display:flex;flex-direction:column;gap:20px}
+.app-detail__row{border-top:1px solid var(--rule);padding-top:12px}
+.app-detail__row .t-label{display:block;margin-bottom:6px}
+.app-detail__actions{display:flex;justify-content:flex-end;gap:10px;border-top:var(--bw) solid var(--frame);padding-top:16px}
+.app-detail__linked{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:space-between}
+.app-detail__linked b{display:block;overflow-wrap:anywhere}
+/* Roster editor panels sit in a grid: without this the grid column grows to the widest table and the whole page scrolls sideways. */
+.roster-edit{grid-template-columns:minmax(0,1fr)}
+.roster-edit>*{min-width:0}
+/* Role and Roster selects share a row; the Roster one has a hint underneath, so align to the top rather than the bottom. */
+.user-row__ctl{align-items:start}
+/* Roster editor cells: wide enough that the longest rank and a typical name are not clipped */
+.roster-edit .tbl .input{min-width:130px}
+.roster-edit .tbl select.input{min-width:180px}
+.roster-edit .tbl td:nth-child(2) .input,.roster-edit .tbl td:nth-child(5) .input,.roster-edit .tbl td:nth-child(9) .input{min-width:104px}
+.roster-edit .tbl td:nth-child(11) .input,.roster-edit .tbl td:nth-child(12) .input{min-width:150px}
+/* Sections panel on a phone: the officer count drops under the name instead of fighting it for width */
+@media(max-width:520px){
+  .rsec{grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"ctl name del" "ctl count del"}
+  .rsec__ctl{grid-area:ctl}
+  .rsec>b{grid-area:name}
+  .rsec>.t-label{grid-area:count}
+  .rsec>.btn{grid-area:del}
+}
+/* The profile editor under a roster row belongs to the visible part of the table, not its 2,400px width: pin it to the left edge as the table scrolls. */
+.tbl__expand td>*{position:sticky;left:16px;width:min(1040px,calc(100vw - 120px))}
+
+/* ---------- Admin: tabs and compact lists ---------- */
+/* The three long lists sit behind tabs, and each list is paged / filtered, so the page never grows with the data. */
+.admin-tabs{margin-top:28px}
+.admin-tabs .seg{max-width:560px}
+.admin-tools{display:flex;flex-direction:column;gap:14px;margin-bottom:18px}
+.admin-tools__row{display:flex;gap:12px;align-items:stretch}
+.admin-tools__row .search{flex:1;min-width:0}
+.admin-create{margin-bottom:18px}
+/* Officer accounts: one line each; the row opens in place to show its controls */
+.officers{list-style:none;margin:0;padding:0}
+.officer{border-bottom:1px solid var(--rule)}
+.officer:last-child{border-bottom:0}
+.officer.is-open{background:color-mix(in srgb,var(--paper-2) 55%,transparent)}
+.officer__row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:14px;width:100%;padding:12px 16px;background:transparent;border:0;text-align:left;font:inherit;color:var(--ink);cursor:pointer;transition:background var(--dur-fast)}
+.officer__row:hover{background:var(--card-hi)}
+.officer__row--static{grid-template-columns:minmax(0,1fr) auto;cursor:default}
+.officer__row--static:hover{background:transparent}
+.officer__id{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;min-width:0}
+.officer__id b{font:800 18px/1 var(--disp);text-transform:uppercase;letter-spacing:.02em}
+.officer__id .t-mono{font-size:12px;color:var(--ink-2);overflow-wrap:anywhere}
+.officer__tags{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.officer__more{display:grid;gap:12px;padding:4px 16px 16px}
+/* Applications: a one-line preview of the answer instead of the whole paragraph (the full text is in the detail view) */
+.app-list{gap:10px}
+.app-list .app{padding:12px 16px}
+.app-list .app__name{font-size:20px}
+.app-list .app__why{margin:8px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:640px){
+  /* Filter rows scroll sideways on a phone instead of wrapping into four lines */
+  .admin-tools .filters{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}
+  .admin-tools .filters button{flex:none;white-space:nowrap}
+  .officer__row{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"id chev" "tags chev";gap:8px 12px}
+  .officer__row--static{grid-template-areas:"id" "tags"}
+  .officer__id{grid-area:id;flex-direction:column;gap:5px}
+  .officer__tags{grid-area:tags;justify-content:flex-start}
+  .officer__row>svg{grid-area:chev}
+}
+
+/* ---------- Phone: shorter pages ---------- */
+/* The handoff stacks the stat tally one per row (four 100px rows for the roster); two across reads the same and is half the height. */
+@media(max-width:720px){
+  .tally{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tally>div{padding:16px 16px 24px;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+  .tally>div:nth-child(2n){border-right:0}
+  .tally>div:last-child,.tally>div:nth-last-child(2):nth-child(odd){border-bottom:0}
+  .tally>div:last-child:nth-child(odd){grid-column:1/-1;border-right:0}
+  .tally strong{font-size:54px}
+  .tally>div::after{left:16px}
+}
+/* Personnel plates are three across on a phone (one per row made this section 9,000px tall). */
+@media(max-width:520px){
+  .plates{gap:30px}
+  .plate-group{width:100%}
+  .plate-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px 10px}
+  .plate{width:auto}
+  .plate__ini{font-size:34px}
+  .plate__name{font-size:14px}
+  .plate__rank{font-size:9px}
+  /* Roster rows on a phone: the initials box goes, so the name and details get the width and a person takes two or three lines, not six. */
+  .roster__p{grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:9px 12px}
+  .roster__av{display:none}
+}
+
+/* ---------- Personnel record (/701, /personnel/701) ---------- */
+.pp-shots{display:grid;gap:22px}
+.pp-ini{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:900 96px/1 var(--disp);color:var(--ink-3)}
+.pp-thumbs{display:flex;flex-wrap:wrap;gap:10px}
+.pp-thumbs button{position:relative;width:64px;height:64px;padding:0;border:1.5px solid var(--frame);background:var(--paper-2);cursor:pointer;opacity:.65;transition:opacity var(--dur-fast),box-shadow var(--dur-fast)}
+.pp-thumbs button:hover{opacity:1}
+.pp-thumbs button.is-on{opacity:1;box-shadow:inset 0 -3px 0 var(--forest)}
+.pp-thumbs img{display:block;width:100%;height:100%;object-fit:cover}
+.pp-thumbs b{position:absolute;left:0;top:0;padding:3px 5px;background:var(--band-bg);color:var(--band-fg);font:600 10px/1 var(--mono)}
+.pp-body{display:grid;gap:30px;min-width:0}
+.pp-tags{display:flex;flex-wrap:wrap;gap:6px}
+.pp-bio{margin:0;padding-left:16px;border-left:3px solid var(--rule);font-size:16px;line-height:1.6;color:var(--ink-2);white-space:pre-wrap}
+.pp-notes{margin:0;line-height:1.65;color:var(--ink-2);white-space:pre-wrap}
+.pp-n{margin-left:8px;font:500 12px/1 var(--mono);font-style:normal;color:var(--ink-3)}
+.pp-body .formblock__row{grid-template-columns:150px minmax(0,1fr)}
+.pp-body .h-sub{margin-bottom:14px}
+@media(max-width:520px){.pp-body .formblock__row{grid-template-columns:112px minmax(0,1fr)}.pp-ini{font-size:72px}}
+
+/* ---------- Licenses (/licenses) ---------- */
+.sheet-actions{display:flex;gap:8px;flex-wrap:wrap}
+.sheet{position:relative;border:var(--bw) solid var(--frame);background:var(--card);box-shadow:var(--shadow-hard)}
+.sheet__frame{display:block;width:100%;height:clamp(440px,76vh,760px);border:0;background:#fff;overscroll-behavior:contain}
+.sheet--fs{position:fixed;inset:0;z-index:9999;border:0;box-shadow:none}
+.sheet--fs .sheet__frame{width:100vw;height:100vh}
+.sheet__exit{position:absolute;top:12px;right:12px;z-index:3}
+body:has(.sheet--fs){overflow:hidden}
+.tips{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:28px;border:var(--bw) solid var(--frame);background:var(--card)}
+.tips>div{padding:16px 18px;border-right:1px solid var(--rule)}
+.tips>div:last-child{border-right:0}
+.tips .kv__k{margin-bottom:8px}
+.tips__v{display:block;font-size:14px;line-height:1.5;color:var(--ink-2)}
+kbd{padding:2px 6px;border:1.5px solid var(--frame);background:var(--card-hi);font:600 11px/1 var(--mono);color:var(--ink)}
+@media(max-width:820px){.tips{grid-template-columns:minmax(0,1fr)}.tips>div{border-right:0;border-bottom:1px solid var(--rule)}.tips>div:last-child{border-bottom:0}}
+
+/* ---------- Ranger portal (/ranger) ---------- */
+.portal-name{color:var(--forest);overflow-wrap:anywhere}
+#ranger-portal .sh__title{overflow-wrap:anywhere}
+.portal-out{display:flex;justify-content:flex-end;margin-top:24px}
+.posts{display:grid;gap:28px}
+.posts__list{display:grid;gap:20px}
+.posts__body{margin:0;white-space:pre-wrap;line-height:1.65;color:var(--ink-2)}
+.posts__body.is-folded{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:8;line-clamp:8;overflow:hidden}
+.posts .card__body>.btn{margin-top:10px}
+.posts__actions{display:flex;gap:8px;flex-wrap:wrap}
+.check{display:inline-flex;align-items:center;gap:10px;cursor:pointer;font:600 12px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase}
+.check input{width:18px;height:18px;margin:0;accent-color:var(--forest)}
+/* Pictures and clips keep their own shape but never run taller than 520px, so one big screenshot can't take over the feed. */
+.embed{display:block;width:fit-content;max-width:100%;margin-top:14px;border:var(--bw) solid var(--frame);background:var(--paper-2)}
+.embed img,.embed video{display:block;width:auto;max-width:100%;max-height:520px;height:auto;margin:0 auto}
+.embed--video{position:relative;width:100%;padding-top:56.25%;background:#000}
+.embed--video iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.embed-link{margin-top:14px}
+
+/* ---------- Home: sections rail ---------- */
+/* A wide screen has an empty margin beside the page: the rail lives there. Narrower screens get a "Sections" button that opens the same list. */
+.homenav{position:fixed;z-index:40;opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .25s,transform .25s,visibility 0s .25s}
+.homenav.is-shown{opacity:1;visibility:visible;transform:none;transition:opacity .25s,transform .25s}
+.homenav__toggle{display:none}
+.homenav__label{display:block;margin-bottom:10px}
+.homenav__list{list-style:none}
+.homenav__list a{display:flex;gap:10px;align-items:baseline;padding:8px 12px;border-left:3px solid var(--rule);font:600 11px/1.25 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);text-decoration:none}
+.homenav__list a:hover{color:var(--ink);border-left-color:var(--ink-3)}
+.homenav__list a.is-on{color:var(--ink);background:var(--card);border-left-color:var(--stamp)}
+.homenav__list b{min-width:18px;font-weight:500;color:var(--ink-3)}
+@media(min-width:1600px){
+  .homenav{left:calc((100vw - var(--content-max)) / 2 + var(--gutter) - 216px);top:calc(var(--hdr-h) + 56px);width:190px}
+}
+@media(max-width:1599px){
+  .homenav{left:16px;bottom:16px}
+  .homenav__label{display:none}
+  .homenav__toggle{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;background:var(--card);border:var(--bw) solid var(--frame);box-shadow:var(--shadow-hard-sm);font:600 11px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+  .homenav__toggle:hover{background:var(--card-hi)}
+  .homenav__list{display:none;position:absolute;left:0;bottom:calc(100% + 10px);width:236px;background:var(--card);border:3px solid var(--frame);box-shadow:var(--shadow-hard);padding:6px 0}
+  .homenav.is-open .homenav__list{display:block}
+}
+
+/* ---------- Surveillance feeds (Home) ---------- */
+/* A 16:9 still with a live HTML overlay. Type sizes follow the card's own width (cqw), so three across and stacked both read. */
+.sv{position:relative;container-type:inline-size;aspect-ratio:16/9;overflow:hidden;background:#0d0f0d;border:1px solid var(--frame);color:#ECE7D6;font-family:var(--mono);font-weight:600;letter-spacing:.08em;text-transform:uppercase;text-shadow:0 1px 2px rgba(0,0,0,.85)}
+.sv::after{content:'';position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,.1) 0 1px,transparent 1px 3px)}
+.sv__media{position:absolute;inset:0}
+.sv__media img{width:100%;height:100%;object-fit:cover;filter:saturate(.72) contrast(1.05);transition:filter .6s}
+.sv.is-off .sv__media img{filter:grayscale(.75) brightness(.42) contrast(.95)}
+.sv__shade{position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.52),transparent 34%,transparent 54%,rgba(0,0,0,.66));animation:sv-flicker 6s steps(1) infinite}
+.sv.is-off .sv__shade{background:linear-gradient(180deg,rgba(0,0,0,.62),rgba(0,0,0,.5) 40%,rgba(0,0,0,.74))}
+.sv__noise{position:absolute;inset:-10%;pointer-events:none;opacity:.07;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");animation:sv-noise .5s steps(5) infinite}
+.sv__scan{position:absolute;left:0;right:0;top:0;height:22%;pointer-events:none;background:linear-gradient(180deg,transparent,rgba(255,255,255,.05) 70%,rgba(255,255,255,.12) 98%,transparent);animation:sv-scan 7s linear infinite}
+.sv__c{position:absolute;width:14px;height:14px;border:0 solid rgba(236,231,214,.7);pointer-events:none}
+.sv__c--tl{top:7px;left:7px;border-top-width:1.5px;border-left-width:1.5px}.sv__c--tr{top:7px;right:7px;border-top-width:1.5px;border-right-width:1.5px}
+.sv__c--bl{bottom:7px;left:7px;border-bottom-width:1.5px;border-left-width:1.5px}.sv__c--br{bottom:7px;right:7px;border-bottom-width:1.5px;border-right-width:1.5px}
+.sv__top,.sv__readout,.sv__bottom{position:absolute;left:14px;right:14px;font-size:clamp(8px,2.7cqw,11px);line-height:1.25}
+.sv__top{top:13px;display:grid;grid-template-columns:1fr auto 1fr;align-items:start}
+.sv__hdr{text-align:center;letter-spacing:.12em;opacity:.9}
+.sv__cam{grid-column:3;justify-self:end}
+.sv__rec{display:inline-flex;align-items:center;gap:.6em}
+.sv__rec i{width:.8em;height:.8em;border-radius:50%;background:#E5483A;animation:sv-blink 1s steps(1) infinite}
+.sv.is-off .sv__rec i{background:#8a8a85;animation:none}
+.sv__readout{list-style:none;top:calc(13px + 2.3em);right:auto;font-size:clamp(7.5px,2.45cqw,10.5px);line-height:1.55}
+.sv__type{display:inline-block;vertical-align:bottom;white-space:nowrap}
+.sv__val{display:inline-block;font-weight:700;color:#fff;animation:sv-glitch .15s steps(3) both}
+.sv__off{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.55em;padding:30% 0 17%;text-align:center;pointer-events:none}
+.sv__off b{padding:.45em 1em;border:1px solid rgba(236,231,214,.55);background:rgba(0,0,0,.4);font-size:clamp(9.5px,3.3cqw,14px);letter-spacing:.22em;line-height:1.1}
+.sv__off span{font-size:clamp(7.5px,2.4cqw,10px);opacity:.8}
+.sv__bottom{bottom:11px;font-size:clamp(8px,2.7cqw,11px)}
+.sv__status{display:flex;justify-content:center;align-items:center;gap:.6em;margin-bottom:.8em;font-size:.88em;letter-spacing:.06em}
+.sv__dot{width:.7em;height:.7em;border-radius:50%;flex-shrink:0}
+.sv__dot.is-go{background:#3BD07C;box-shadow:0 0 6px #3BD07C}.sv__dot.is-wait{background:#E8A33D;box-shadow:0 0 6px #E8A33D}
+.sv__row{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.sv__clock{font-variant-numeric:tabular-nums}
+/* First load: labels type in once the card is on screen. */
+.sv.is-armed:not(.is-in) .sv__type{clip-path:inset(0 100% 0 0)}
+.sv.is-in .sv__type{animation:sv-type .6s steps(var(--n,12)) both;animation-delay:calc(.2s + var(--i,0) * .14s)}
+@keyframes sv-type{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+@keyframes sv-blink{0%,49%{opacity:1}50%,100%{opacity:.15}}
+@keyframes sv-scan{from{transform:translateY(-100%)}to{transform:translateY(560%)}}
+@keyframes sv-noise{0%{transform:translate(0,0)}20%{transform:translate(-3%,2%)}40%{transform:translate(2%,-3%)}60%{transform:translate(-2%,-1%)}80%{transform:translate(3%,3%)}100%{transform:translate(0,0)}}
+@keyframes sv-flicker{0%,100%{opacity:1}91%{opacity:.93}92%{opacity:1}96%{opacity:.95}97%{opacity:1}}
+@keyframes sv-glitch{0%{opacity:.25;transform:translateX(-2px)}40%{opacity:1;transform:translateX(2px);text-shadow:-1px 0 #E5483A,1px 0 #5AD1E6}70%{opacity:.5;transform:translateX(-1px)}100%{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){
+  .sv__rec i,.sv__shade,.sv__noise,.sv__scan,.sv__val,.sv__type{animation:none!important}
+  .sv__scan{display:none}
+  .sv.is-in .sv__type,.sv.is-armed:not(.is-in) .sv__type{clip-path:none}
+}
+/* Three across on a wide screen, stacked (and not stretched) below that. */
+@media(max-width:900px){.feeds{grid-template-columns:minmax(0,1fr);max-width:600px;margin-inline:auto}}
+@media(max-width:640px){.sv__hdr{display:none}}
